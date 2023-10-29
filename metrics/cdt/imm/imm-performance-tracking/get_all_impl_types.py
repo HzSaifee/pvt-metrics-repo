@@ -1,5 +1,6 @@
 # coding=utf-8
 from goku.util.context import GokuContext
+from gokucli.util.email import send_email
 import sys
 import requests
 import subprocess as sp
@@ -16,6 +17,10 @@ main_table_name = "imm_performance_tracking"
 temp_table_name = f"do_not_use_drop_it_temp_{main_table_name}"
 module_names_name = "module_names"
 composite_types_name = "composite_types"
+email_list = [
+    "huzefa.saifee@workday.com",
+    "aaaafchrgkv5pdr5rcquhlad7u@workday.org.slack.com",
+]
 
 
 def get_headers(key_value):
@@ -54,7 +59,7 @@ def write_data(tableData, tableName):
     )
 
 
-def read_data(tableName, where_clause = ""):
+def read_data(tableName, where_clause=""):
     tableData = ""
     if tableName in [composite_types_name, module_names_name, main_table_name]:
         tableData = sp.check_output(
@@ -98,15 +103,20 @@ def fetch_module_names():
             write_data(module_names, module_names_name)
             print("Module Names data written to CDT Schema")
         except:
-            print("Unable to write Module Names data to CDT Schema")
+            email_body = (
+                f"Unable to write Module Names data to CDT Schema for {main_table_name}"
+            )
+            print(email_body)
+            send_email(email_list, email_body, main_table_name)
     except:
         try:
             module_names = read_data(module_names_name)
             print("Module Names read from CDT Schema")
         except:
-            print(
-                "Unable to Fetch Module Names data from either Rest Call or CDT Schema"
-            )  # Have an Email Notification Sent
+            email_body = f"Unable to Fetch Module Names data from either Rest Call or CDT Schema for {main_table_name}"
+            print(email_body)
+            send_email(email_list, email_body, main_table_name)
+            sys.exit()
     print(f"Number of Module Names: {len(module_names)}")
     return module_names
 
@@ -143,15 +153,18 @@ def fetch_composite_types():
             write_data(composite_types, composite_types_name)
             print("Composite Types data written to CDT Schema")
         except:
-            print("Unable to write Composite Types data to CDT Schema")
+            email_body = f"Unable to write Composite Types data to CDT Schema for {main_table_name}"
+            print(email_body)
+            send_email(email_list, email_body, main_table_name)
     except:
         try:
             composite_types = read_data(composite_types_name)
             print("Composite Types read from CDT Schema")
         except:
-            print(
-                "Unable to Fetch Composite Types data from either Rest Call or CDT Schema"
-            )  # Have an Email Notification Sent
+            email_body = f"Unable to Fetch Composite Types data from either Rest Call or CDT Schema for {main_table_name}"
+            print(email_body)
+            send_email(email_list, email_body, main_table_name)
+            sys.exit()
     print(f"Number of Composite Types: {len(composite_types)}")
     return composite_types
 
