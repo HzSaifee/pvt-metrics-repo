@@ -19,7 +19,7 @@ module_names_name = "module_names"
 composite_types_name = "composite_types"
 email_list = [
     "huzefa.saifee@workday.com",
-    "aaaafchrgkv5pdr5rcquhlad7u@workday.org.slack.com",
+    "cdt-metrics-notificat-aaaaled2h5dpfrqzvfyj6wutpi@workday.org.slack.com",
 ]
 
 
