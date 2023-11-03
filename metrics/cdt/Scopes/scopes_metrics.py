@@ -34,11 +34,11 @@ def fetch_data(file_name):
 def main(argv):
     data_list = []
     sql_files = [
-        "scopes_metrics",
-        "scopes_input_type_metrics",
-        "scopes_selection_type_metrics",
-        "scopes_validation_usages_metrics",
-        "scopes_materialization_metrics",
+        "metrics",
+        "input_type_metrics",
+        "selection_type_metrics",
+        "validation_usages_metrics",
+        "materialization_metrics",
     ]
 
     for sql_file in sql_files:

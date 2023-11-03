@@ -17,7 +17,7 @@
       "cpus" : 1.0,
       "mem" : 32.0,
       "disk" : 64.0,
-      "uris" : [ "$HOME/metrics/cdt/Scopes/scopes_metrics.sql", "$HOME/metrics/cdt/Scopes/scopes_input_type_metrics.sql", "$HOME/metrics/cdt/Scopes/scopes_selection_type_metrics.sql", "$HOME/metrics/cdt/Scopes/scopes_validation_usages_metrics.sql", "$HOME/metrics/cdt/Scopes/scopes_materialization_metrics.sql" ],
+      "uris" : [ "$HOME/metrics/cdt/Scopes/metrics.sql", "$HOME/metrics/cdt/Scopes/input_type_metrics.sql", "$HOME/metrics/cdt/Scopes/selection_type_metrics.sql", "$HOME/metrics/cdt/Scopes/validation_usages_metrics.sql", "$HOME/metrics/cdt/Scopes/materialization_metrics.sql" ],
       "variables" : ""
     }
   } ],
