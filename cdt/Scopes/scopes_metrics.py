@@ -7,11 +7,10 @@ from io import StringIO
 import pandas as pd
 
 month_value = "OLDEST_MONTH_VALUE_TO_SET"
-date_24_month_ago = datetime.today().replace(day=1) - relativedelta(months=24)
-month_to_query_from = date_24_month_ago.replace(
-    hour=0, minute=0, second=0, microsecond=0
-)
-str_month_to_query_from = month_to_query_from.strftime("%Y-%m-%d")
+str_month_to_query_from = (
+    datetime.today().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    - relativedelta(months=24)
+).strftime("%Y-%m-%d")
 
 
 def fetch_data(file_name):

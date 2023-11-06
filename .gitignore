@@ -1,1 +1,6 @@
 .DS_Store
+input_type_metrics.csv
+materialization_metrics.csv
+metrics.csv
+selection_type_metrics.csv
+validation_usages_metrics.csv

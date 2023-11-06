@@ -5,7 +5,7 @@
     "createdAt" : "2023-11-03T02:51:28:228 PM UTC",
     "command" : {
       "language" : "pythonscript",
-      "script" : "$HOME/metrics/cdt/Scopes/scopes_metrics.py"
+      "script" : "$HOME/cdt/Scopes/scopes_metrics.py"
     },
     "version" : "1.0.0",
     "publishSettings" : {
@@ -17,7 +17,7 @@
       "cpus" : 1.0,
       "mem" : 32.0,
       "disk" : 64.0,
-      "uris" : [ "$HOME/metrics/cdt/Scopes/metrics.sql", "$HOME/metrics/cdt/Scopes/input_type_metrics.sql", "$HOME/metrics/cdt/Scopes/selection_type_metrics.sql", "$HOME/metrics/cdt/Scopes/validation_usages_metrics.sql", "$HOME/metrics/cdt/Scopes/materialization_metrics.sql" ],
+      "uris" : [ "$HOME/cdt/Scopes/metrics.sql", "$HOME/cdt/Scopes/input_type_metrics.sql", "$HOME/cdt/Scopes/selection_type_metrics.sql", "$HOME/cdt/Scopes/validation_usages_metrics.sql", "$HOME/cdt/Scopes/materialization_metrics.sql" ],
       "variables" : ""
     }
   } ],

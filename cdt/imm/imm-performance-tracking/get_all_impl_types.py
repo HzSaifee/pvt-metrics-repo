@@ -221,10 +221,9 @@ def main(argv):
     module_names = fetch_module_names()
     composite_types = fetch_composite_types()
 
-    date_24_month_ago = datetime.today().replace(day=1) - relativedelta(months=24)
-    month_to_query_from = date_24_month_ago.replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
+    month_to_query_from = date_24_month_ago = datetime.today().replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    ) - relativedelta(months=24)
     create_table_query = (
         open("create_table.sql")
         .read()
