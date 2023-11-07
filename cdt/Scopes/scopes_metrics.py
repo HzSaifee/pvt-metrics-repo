@@ -8,8 +8,7 @@ import pandas as pd
 
 month_value = "OLDEST_MONTH_VALUE_TO_SET"
 str_month_to_query_from = (
-    datetime.today().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    - relativedelta(months=24)
+    datetime.today().replace(day=1) - relativedelta(months=24)
 ).strftime("%Y-%m-%d")
 
 
