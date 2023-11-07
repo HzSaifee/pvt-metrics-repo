@@ -1,4 +1,7 @@
 .DS_Store
+composite_types.csv
+module_names.csv
+do_not_use_drop_it_temp_imm_performance_Tracking.csv
 input_type_metrics.csv
 materialization_metrics.csv
 metrics.csv
