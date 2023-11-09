@@ -15,7 +15,6 @@ email_list = [
     "huzefa.saifee@workday.com",
     "m6a0l2y5u3c9i6f3@workday.enterprise.slack.com",
 ]
-email_subject = "Pharos Query for Scopes Failed"
 
 
 def fetch_data(file_name):
@@ -34,6 +33,7 @@ def fetch_data(file_name):
             )
         )
     except:
+        email_subject = "Pharos Query for Scopes Failed"
         email_body = f"{email_subject} on {file_name}.sql"
         print(email_body)
         send_email(email_list, email_body, email_subject)
@@ -66,4 +66,10 @@ def entry_point():
 
 
 if __name__ == "__main__":
-    entry_point()
+    try:
+        entry_point()
+    except:
+        email_text = "Scopes Flow Failed"
+        print(email_text)
+        send_email(email_list, email_text, email_text)
+        sys.exit()

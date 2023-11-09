@@ -354,4 +354,10 @@ def entry_point():
 
 
 if __name__ == "__main__":
-    entry_point()
+    try:
+        entry_point()
+    except:
+        email_text = f"{main_table_name} Flow Failed"
+        print(email_text)
+        send_email(email_list, email_text, email_text)
+        sys.exit()
