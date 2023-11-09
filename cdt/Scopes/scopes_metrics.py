@@ -36,7 +36,7 @@ def fetch_data(file_name):
     except:
         email_body = f"{email_subject} on {file_name}.sql"
         print(email_body)
-        # send_email(email_list, email_body, main_table_name)
+        send_email(email_list, email_body, email_subject)
         sys.exit()
     return data
 
