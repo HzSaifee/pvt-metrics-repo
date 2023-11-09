@@ -15,7 +15,7 @@ email_list = [
     "huzefa.saifee@workday.com",
     "m6a0l2y5u3c9i6f3@workday.enterprise.slack.com",
 ]
-email_subject = "Pharos Query Failed"
+email_subject = "Pharos Query for Scopes Failed"
 
 
 def fetch_data(file_name):
