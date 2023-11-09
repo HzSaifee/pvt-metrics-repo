@@ -1,4 +1,5 @@
 from goku.util.context import GokuContext
+from gokucli.util.email import send_email
 import sys
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -10,22 +11,33 @@ month_value = "OLDEST_MONTH_VALUE_TO_SET"
 str_month_to_query_from = (
     datetime.today().replace(day=1) - relativedelta(months=24)
 ).strftime("%Y-%m-%d")
+email_list = [
+    "huzefa.saifee@workday.com",
+    "m6a0l2y5u3c9i6f3@workday.enterprise.slack.com",
+]
+email_subject = "Pharos Query Failed"
 
 
 def fetch_data(file_name):
-    swh_query = (
-        open(f"{file_name}.sql")
-        .read()
-        .replace(month_value, f"'{str_month_to_query_from}'")
-    )
-    data = pd.read_csv(
-        StringIO(
-            sp.check_output(
-                f"""pharos sql run --sql "{swh_query}" | jq -r '.result.data'""",
-                shell=True,
-            ).decode("utf-8")
+    try:
+        swh_query = (
+            open(f"{file_name}.sql")
+            .read()
+            .replace(month_value, f"'{str_month_to_query_from}'")
         )
-    )
+        data = pd.read_csv(
+            StringIO(
+                sp.check_output(
+                    f"""pharos sql run --sql "{swh_query}" | jq -r '.result.data'""",
+                    shell=True,
+                ).decode("utf-8")
+            )
+        )
+    except:
+        email_body = f"{email_subject} on {file_name}.sql"
+        print(email_body)
+        # send_email(email_list, email_body, main_table_name)
+        sys.exit()
     return data
 
 
