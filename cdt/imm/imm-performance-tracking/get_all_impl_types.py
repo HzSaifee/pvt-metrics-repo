@@ -111,7 +111,9 @@ def fetch_module_names():
     except:
         try:
             module_names = read_data(module_names_name)
-            print("Module Names read from CDT Schema")
+            email_body = f"Unable to Fetch Module Names data from Rest Call, Fetched from CDT Schema for {main_table_name}"
+            print(email_body)
+            send_email(email_list, email_body, main_table_name)
         except:
             email_body = f"Unable to Fetch Module Names data from either Rest Call or CDT Schema for {main_table_name}"
             print(email_body)
@@ -159,7 +161,9 @@ def fetch_composite_types():
     except:
         try:
             composite_types = read_data(composite_types_name)
-            print("Composite Types read from CDT Schema")
+            email_body = f"Unable to Fetch Composite Types data from Rest Call, Fetched from CDT Schema for {main_table_name}"
+            print(email_body)
+            send_email(email_list, email_body, main_table_name)
         except:
             email_body = f"Unable to Fetch Composite Types data from either Rest Call or CDT Schema for {main_table_name}"
             print(email_body)
