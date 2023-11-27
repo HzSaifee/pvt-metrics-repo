@@ -304,6 +304,11 @@ def main(argv):
         ).drop("implementation_type", axis=1)
     )
 
+    # Add Composite Types Column for filter purpose
+    merged_data_to_write["composite_type"] = merged_data_to_write[
+        "implementation_type_name"
+    ].isin(composite_types["composite_type"])
+
     # Drop Temp Table before writing anything in it, to be safe
     drop_temp_table_output = sp.check_output(
         f"""pharos sql run --sql "{drop_table_query(temp_table_name)}" | jq -r '.result.data'""",
@@ -337,20 +342,6 @@ def main(argv):
         f"""pharos sql run --sql "DELETE FROM cdt.{main_table_name} WHERE month < cast('{oldest_date_allowed}' AS DATE)" | jq -r '.result.data'""",
         shell=True,
     )
-
-    # Fetch complete up-to-date data from main_table_name table
-    df = read_data(main_table_name, where_clause)
-
-    # Write datafrom the main_table_name table to two Nimbus Tables
-    with GokuContext(argv) as ctx:
-        ctx.write_report(
-            df, filename="all_impl_types.csv", index=False, encoding="utf-8"
-        )
-        # Until above code, it's All Impl Types. Now, filter out to get only Composite Types
-        df1 = df[df["implementation_type_name"].isin(composite_types["composite_type"])]
-        ctx.write_report(
-            df1, filename="composite_types.csv", index=False, encoding="utf-8"
-        )
 
 
 def entry_point():

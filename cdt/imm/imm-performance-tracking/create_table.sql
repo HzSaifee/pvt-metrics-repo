@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS cdt.MAIN_TABLE_NAME_TO_SET ( -- MAIN_TABLE_NAME_TO_SE
     module                              STRING  COMMENT 'Module assigned to the Implementation Type',
     tools                               STRING  COMMENT 'Tools that ran the Implementation Type',
     environment                         STRING  COMMENT 'Environment on which the Implementation Type ran',
+    composite_type                      Boolean COMMENT 'Whether the Implementation Type is Composite Type or Not',
     count                               BIGINT  COMMENT 'Number of times the Implementation Type ran on the specific Tool & Env for the Month',
     avg_transformation_time             FLOAT   COMMENT 'Average Transformation Time taken for Implementation Type on the specific Tool & Env for the Month',
     max_trans_time                      BIGINT  COMMENT 'Maximum Transformation Time over all runs for Implementation Type on the specific Tool & Env for the Month',

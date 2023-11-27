@@ -9,6 +9,7 @@ PARTITION (month)
         module,
         tools,
         environment,
+        cast(composite_type AS BOOLEAN),
         cast(count AS BIGINT),
         cast(avg_transformation_time AS FLOAT),
         cast(max_trans_time AS BIGINT),
