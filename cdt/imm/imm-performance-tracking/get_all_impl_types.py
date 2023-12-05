@@ -20,6 +20,8 @@ composite_types_name = "composite_types"
 email_list = [
     "huzefa.saifee@workday.com",
     "m6a0l2y5u3c9i6f3@workday.enterprise.slack.com",
+    "jon.el-bakri@workday.com",
+    "v0r5c3h7o1c5z6e2@workday.enterprise.slack.com",
 ]
 
 
