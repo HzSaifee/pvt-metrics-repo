@@ -102,20 +102,18 @@ def fetch_module_names():
         try:
             write_data(module_names, module_names_name)
             print("Module Names data written to CDT Schema")
-        except:
-            email_body = (
-                f"Unable to write Module Names data to CDT Schema for {main_table_name}"
-            )
+        except Exception as e:
+            email_body = f"Unable to write Module Names data to CDT Schema for {main_table_name} \n {e}"
             print(email_body)
             send_email(email_list, email_body, main_table_name)
-    except:
+    except Exception as e1:
         try:
             module_names = read_data(module_names_name)
-            email_body = f"Unable to Fetch Module Names data from Rest Call, Fetched from CDT Schema for {main_table_name}"
+            email_body = f"Unable to Fetch Module Names data from Rest Call, Fetched from CDT Schema for {main_table_name} \n {e1}"
             print(email_body)
             send_email(email_list, email_body, main_table_name)
-        except:
-            email_body = f"Unable to Fetch Module Names data from either Rest Call or CDT Schema for {main_table_name}"
+        except Exception as e2:
+            email_body = f"Unable to Fetch Module Names data from either Rest Call or CDT Schema for {main_table_name} \n {e1} \n {e2}"
             print(email_body)
             send_email(email_list, email_body, main_table_name)
             sys.exit()
@@ -154,18 +152,18 @@ def fetch_composite_types():
         try:
             write_data(composite_types, composite_types_name)
             print("Composite Types data written to CDT Schema")
-        except:
-            email_body = f"Unable to write Composite Types data to CDT Schema for {main_table_name}"
+        except Exception as e:
+            email_body = f"Unable to write Composite Types data to CDT Schema for {main_table_name} \n {e}"
             print(email_body)
             send_email(email_list, email_body, main_table_name)
-    except:
+    except Exception as e1:
         try:
             composite_types = read_data(composite_types_name)
-            email_body = f"Unable to Fetch Composite Types data from Rest Call, Fetched from CDT Schema for {main_table_name}"
+            email_body = f"Unable to Fetch Composite Types data from Rest Call, Fetched from CDT Schema for {main_table_name} \n {e1}"
             print(email_body)
             send_email(email_list, email_body, main_table_name)
-        except:
-            email_body = f"Unable to Fetch Composite Types data from either Rest Call or CDT Schema for {main_table_name}"
+        except Exception as e2:
+            email_body = f"Unable to Fetch Composite Types data from either Rest Call or CDT Schema for {main_table_name} \n {e1} \n {e2}"
             print(email_body)
             send_email(email_list, email_body, main_table_name)
             sys.exit()
@@ -351,8 +349,8 @@ def entry_point():
 if __name__ == "__main__":
     try:
         entry_point()
-    except:
-        email_text = f"{main_table_name} Flow Failed"
+    except Exception as e:
+        email_text = f"{main_table_name} Flow Failed \n {e}"
         print(email_text)
         send_email(email_list, email_text, email_text)
         sys.exit()
