@@ -34,7 +34,7 @@ def get_headers(key_value):
     }
     try:
         return_value = key_value_list[key_value.lower()]
-    except:
+    except Exception as e:
         return_value = b""
     return headers_value.decrypt(return_value).decode()
 
