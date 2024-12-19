@@ -14,10 +14,10 @@ days_before_today_to_query_from = 90
 csv_file_name = "tenant_build.csv"
 cdt_table_name = "tenant_build"
 email_list = [
-    huzefa.saifee @ workday.com,
-    m6a0l2y5u3c9i6f3 @ workday.enterprise.slack.com,
-    sabrina.zhou @ workday.com,
-    r5n5g2q8z0t1o5h2 @ workday.enterprise.slack.com,
+    "huzefa.saifee@workday.com",
+    "m6a0l2y5u3c9i6f3@workday.enterprise.slack.com",
+    "sabrina.zhou@workday.com",
+    "r5n5g2q8z0t1o5h2@workday.enterprise.slack.com",
 ]
 
 
