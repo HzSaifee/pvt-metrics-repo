@@ -1,12 +1,5 @@
 .DS_Store
-composite_types.csv
-module_names.csv
-do_not_use_drop_it_temp_imm_performance_Tracking.csv
-input_type_metrics.csv
-materialization_metrics.csv
-metrics.csv
-selection_type_metrics.csv
-validation_usages_metrics.csv
+cdt/North Star Metrics/Consolidation/csv
 sfdc_account_details.csv
 sfdc_customer_tenants.csv
 sfdc_customer_account_tenants.csv
@@ -16,4 +9,12 @@ change_tracker_event_log.csv
 tenant_compare_event_log.csv
 scopes_metrics.csv
 scopes_input_type_metrics.csv
-migration_event_log.csvcdt/North Star Metrics/Consolidation/csv
+migration_event_log.csv
+composite_types.csv
+module_names.csv
+do_not_use_drop_it_temp_imm_performance_Tracking.csv
+input_type_metrics.csv
+materialization_metrics.csv
+metrics.csv
+selection_type_metrics.csv
+validation_usages_metrics.csv
