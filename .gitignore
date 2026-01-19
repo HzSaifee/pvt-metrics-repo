@@ -7,3 +7,13 @@ materialization_metrics.csv
 metrics.csv
 selection_type_metrics.csv
 validation_usages_metrics.csv
+sfdc_account_details.csv
+sfdc_customer_tenants.csv
+sfdc_customer_account_tenants.csv
+sfdc_deployments.csv
+sfdc_account_tenant_map.csv
+change_tracker_event_log.csv
+tenant_compare_event_log.csv
+scopes_metrics.csv
+scopes_input_type_metrics.csv
+migration_event_log.csvcdt/North Star Metrics/Consolidation/csv
