@@ -79,6 +79,7 @@ def fetch_module_names():
     query = open(f"{module_names_name}.sql").read()
     name = "implementation_type"
     module = "module"
+    ox20enabled = "ox_enabled"
     module_names = []
     try:
         jsonResponse = rest_api_call(query)
@@ -98,7 +99,8 @@ def fetch_module_names():
                 responseModule = (
                     dt["moduleName"].replace(" *", "") if dt["moduleName"] else ""
                 )
-                module_names.append(dict({name: responseName, module: responseModule}))
+                responseOX20Enabled = bool(dt.get("OX20Enabled", False))
+                module_names.append(dict({name: responseName, module: responseModule, ox20enabled: responseOX20Enabled}))
         module_names = pd.DataFrame(module_names)
         print("Rest Call code ran for Module Names")
         try:
