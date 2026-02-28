@@ -1,5 +1,5 @@
 .DS_Store
-cdt/North Star Metrics/Consolidation/csv
+cdt/NorthStarMetrics/TableauDashboardData/TablesUsed/csv
 sfdc_account_details.csv
 sfdc_customer_tenants.csv
 sfdc_customer_account_tenants.csv
