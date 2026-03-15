@@ -122,8 +122,8 @@ migration_recipe_deployments AS (
                 THEN DATE_ADD('day', 14, DATE_TRUNC('month', CAST(d.deployment_start_date AS DATE)))
             ELSE DATE_ADD('day', -1, DATE_TRUNC('month', DATE_ADD('month', 1, CAST(d.deployment_start_date AS DATE))))
         END AS biweekly_period,
-        -- Shifted date for Migration Usage % chart (3 months forward) - UNCHANGED
-        DATE_ADD('month', 3, CAST(d.deployment_start_date AS DATE)) AS shifted_deployment_date,
+        -- Shifted date for Migration Usage % chart (6 months forward) - UNCHANGED
+        DATE_ADD('month', 6, CAST(d.deployment_start_date AS DATE)) AS shifted_deployment_date,
         -- Deployment filter columns (aligned naming)
         COALESCE(d.product_area, 'Unknown') AS deployment_product_area,
         COALESCE(d.priming_partner_name, 'Unknown') AS deployment_partner,
@@ -195,7 +195,7 @@ SELECT
     mrd.customer_sf_account_id,
     mrd.deployment_month,
     mrd.biweekly_period,  -- Included for consistency but Migration chart uses shifted_deployment_date
-    mrd.shifted_deployment_date,  -- 3 months forward for Migration - UNCHANGED
+    mrd.shifted_deployment_date,  -- 6 months forward for Migration - UNCHANGED
     mrd.deployment_product_area,
     mrd.deployment_partner,
     mrd.deployment_phase,
