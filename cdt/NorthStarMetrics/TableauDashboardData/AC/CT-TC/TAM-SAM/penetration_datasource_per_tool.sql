@@ -27,7 +27,14 @@ WITH Parameters AS (
             WHEN DAY(CURRENT_DATE) <= 15 
                 THEN DATE_TRUNC('month', CURRENT_DATE)
             ELSE DATE_ADD('day', 15, DATE_TRUNC('month', CURRENT_DATE))
-        END AS end_date
+        END AS end_date,
+        -- Shifted window for non-Launch Express Initial Deployments by 6 months based on Migration Recipe Usage from Initial Deployment Start Date
+        DATE_TRUNC('month', DATE_ADD('month', -(6 + 6), CURRENT_DATE)) AS initial_start_date_ac,
+        CASE 
+            WHEN DAY(CURRENT_DATE) <= 15 
+                THEN DATE_ADD('month', -6, DATE_TRUNC('month', CURRENT_DATE))
+            ELSE DATE_ADD('month', -6, DATE_ADD('day', 15, DATE_TRUNC('month', CURRENT_DATE)))
+        END AS initial_end_date_ac
 ),
 
 -- =============================================================================
@@ -57,6 +64,7 @@ migration_filtered AS (
 ),
 
 account_deployments AS (
+    -- Subsequent + Launch Express Initial: standard 6-month window, Active + Complete
     SELECT 
         customer_sf_account_id,
         COALESCE(NULLIF(product_area, ''), 'Unknown') AS deployment_product_area,
@@ -66,10 +74,28 @@ account_deployments AS (
         overall_status AS deployment_overall_status,
         deployment_start_date
     FROM dw.lookup_db.sfdc_deployments
-    WHERE (overall_status = 'Active'
-        OR deployment_completion_date BETWEEN DATE_TRUNC('month', CURRENT_DATE - INTERVAL '6' MONTH) AND CURRENT_DATE
-        )
-        AND deployment_start_date >= DATE_TRUNC('year', CURRENT_DATE - INTERVAL '2' YEAR)
+    CROSS JOIN Parameters p
+    WHERE overall_status IN ('Active', 'Complete')
+        AND (type != 'Initial Deployment' OR phase = 'Launch Express')
+        AND deployment_start_date >= p.start_date
+        AND deployment_start_date <= p.end_date
+    UNION ALL
+    -- Non-Launch Express Initial Deployments: shifted window, Active + Complete
+    SELECT 
+        customer_sf_account_id,
+        COALESCE(NULLIF(product_area, ''), 'Unknown') AS deployment_product_area,
+        COALESCE(NULLIF(priming_partner_name, ''), 'Unknown') AS deployment_partner,
+        COALESCE(NULLIF(type, ''), 'Unknown') AS deployment_type,
+        COALESCE(NULLIF(phase, ''), 'Unknown') AS deployment_phase,
+        overall_status AS deployment_overall_status,
+        deployment_start_date
+    FROM dw.lookup_db.sfdc_deployments
+    CROSS JOIN Parameters p
+    WHERE overall_status IN ('Active', 'Complete')
+        AND type = 'Initial Deployment'
+        AND (phase IS NULL OR phase != 'Launch Express')
+        AND deployment_start_date >= p.initial_start_date_ac
+        AND deployment_start_date <= p.initial_end_date_ac
 ),
 
 account_deployment_combos AS (
@@ -466,9 +492,12 @@ active_customers AS (
 
 -- =============================================================================
 -- PART C: CUSTOMERS WITH ACTIVE DEPLOYMENTS DENOMINATOR (Same as Overall)
+-- UNION: Subsequent + LE Initial (standard window, Active only)
+-- vs Non-LE Initial (shifted window, Active + Complete)
 -- =============================================================================
 
 active_deployments_base AS (
+    -- Subsequent + Launch Express Initial: standard 6-month window, Active only
     SELECT 
         d.customer_sf_account_id,
         COALESCE(sad.billing_id, 'Unknown') AS billing_id,
@@ -490,6 +519,7 @@ active_deployments_base AS (
     LEFT JOIN dw.lookup_db.sfdc_account_details sad 
         ON d.customer_sf_account_id = sad.sf_account_id
     WHERE d.overall_status = 'Active'
+      AND (d.type != 'Initial Deployment' OR d.phase = 'Launch Express')
       AND d.phase NOT IN (
           'Adhoc',
           'Customer Enablement',
@@ -521,6 +551,62 @@ active_deployments_base AS (
       )
       AND d.deployment_start_date >= p.start_date
       AND d.deployment_start_date <= p.end_date
+    UNION ALL
+    -- Non-Launch Express Initial Deployments: shifted window, Active + Complete
+    SELECT 
+        d.customer_sf_account_id,
+        COALESCE(sad.billing_id, 'Unknown') AS billing_id,
+        sad.sf_account_id,
+        COALESCE(sad.account_name, 'Unknown') AS account_name,
+        COALESCE(sad.enterprise_size_group, 'Unknown') AS enterprise_size_group,
+        COALESCE(sad.segment, 'Unknown') AS segment,
+        COALESCE(sad.industry, 'Unknown') AS industry,
+        COALESCE(sad.super_industry, 'Unknown') AS super_industry,
+        COALESCE(sad.segment_size_l1, 'Unknown') AS segment_size_l1,
+        COALESCE(NULLIF(d.product_area, ''), 'Unknown') AS deployment_product_area,
+        COALESCE(NULLIF(d.priming_partner_name, ''), 'Unknown') AS deployment_partner,
+        COALESCE(NULLIF(d.type, ''), 'Unknown') AS deployment_type,
+        COALESCE(NULLIF(d.phase, ''), 'Unknown') AS deployment_phase,
+        d.overall_status AS deployment_overall_status,
+        d.deployment_start_date
+    FROM dw.lookup_db.sfdc_deployments d
+    CROSS JOIN Parameters p
+    LEFT JOIN dw.lookup_db.sfdc_account_details sad 
+        ON d.customer_sf_account_id = sad.sf_account_id
+    WHERE d.overall_status IN ('Active', 'Complete')
+      AND d.type = 'Initial Deployment'
+      AND (d.phase IS NULL OR d.phase != 'Launch Express')
+      AND d.phase NOT IN (
+          'Adhoc',
+          'Customer Enablement',
+          'Customer Led',
+          'Peakon First',
+          'Phase - X - Planning',
+          'Phase X - Peakon',
+          'Phase X - Planning',
+          'Phase X - Sourcing',
+          'Phase X - VNDLY',
+          'Planning First',
+          'Sourcing First',
+          'VNDLY First'
+      )
+      AND COALESCE(d.product_area, '') NOT IN (
+          'Adaptive Planning',
+          'HiredScore',
+          'Planning',
+          'VNDLY',
+          'Workday HiredScore',
+          'Workday Peakon Employee Voice',
+          'Workday Success Plans',
+          'Workday VNDLY'
+      )
+      AND sad.segment NOT IN (
+        'CSD EMEA',
+        'Specialized',
+        'US Federal'
+      )
+      AND d.deployment_start_date >= p.initial_start_date_ac
+      AND d.deployment_start_date <= p.initial_end_date_ac
 ),
 
 active_deployments AS (

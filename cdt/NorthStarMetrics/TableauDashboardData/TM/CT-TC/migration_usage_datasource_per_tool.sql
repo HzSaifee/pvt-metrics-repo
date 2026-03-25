@@ -21,7 +21,14 @@ WITH Parameters AS (
             WHEN DAY(CURRENT_DATE) <= 15 
                 THEN DATE_TRUNC('month', CURRENT_DATE)
             ELSE DATE_ADD('day', 15, DATE_TRUNC('month', CURRENT_DATE))
-        END AS end_date
+        END AS end_date,
+        -- Shifted window for non-Launch Express Initial Deployments by 6 months based on Migration Recipe Usage from Initial Deployment Start Date
+        DATE_TRUNC('month', DATE_ADD('month', -(6 + 6), CURRENT_DATE)) AS initial_start_date_ac,
+        CASE 
+            WHEN DAY(CURRENT_DATE) <= 15 
+                THEN DATE_ADD('month', -6, DATE_TRUNC('month', CURRENT_DATE))
+            ELSE DATE_ADD('month', -6, DATE_ADD('day', 15, DATE_TRUNC('month', CURRENT_DATE)))
+        END AS initial_end_date_ac
 ),
 
 -- =============================================================================
@@ -91,8 +98,11 @@ migration_tool_mapping AS (
 
 -- =============================================================================
 -- PRE-AGGREGATE: Active Deployments per Account for Enrichment
+-- UNION: Subsequent + LE Initial (standard window, Active + Complete)
+-- vs Non-LE Initial (shifted window, Active + Complete)
 -- =============================================================================
 account_deployments AS (
+    -- Subsequent + Launch Express Initial: standard 6-month window, Active + Complete
     SELECT 
         customer_sf_account_id,
         COALESCE(NULLIF(product_area, ''), 'Unknown') AS deployment_product_area,
@@ -101,10 +111,27 @@ account_deployments AS (
         COALESCE(NULLIF(phase, ''), 'Unknown') AS deployment_phase,
         deployment_start_date
     FROM dw.lookup_db.sfdc_deployments
-    WHERE (overall_status = 'Active'
-      OR deployment_completion_date BETWEEN DATE_TRUNC('month', CURRENT_DATE - INTERVAL '6' MONTH) AND CURRENT_DATE
-      )
-      AND deployment_start_date >= DATE_TRUNC('year', CURRENT_DATE - INTERVAL '2' YEAR)
+    CROSS JOIN Parameters p
+    WHERE overall_status IN ('Active', 'Complete')
+      AND (type != 'Initial Deployment' OR phase = 'Launch Express')
+      AND deployment_start_date >= p.start_date
+      AND deployment_start_date <= p.end_date
+    UNION ALL
+    -- Non-Launch Express Initial Deployments: shifted window, Active + Complete
+    SELECT 
+        customer_sf_account_id,
+        COALESCE(NULLIF(product_area, ''), 'Unknown') AS deployment_product_area,
+        COALESCE(NULLIF(priming_partner_name, ''), 'Unknown') AS deployment_partner,
+        COALESCE(NULLIF(type, ''), 'Unknown') AS deployment_type,
+        COALESCE(NULLIF(phase, ''), 'Unknown') AS deployment_phase,
+        deployment_start_date
+    FROM dw.lookup_db.sfdc_deployments
+    CROSS JOIN Parameters p
+    WHERE overall_status IN ('Active', 'Complete')
+      AND type = 'Initial Deployment'
+      AND (phase IS NULL OR phase != 'Launch Express')
+      AND deployment_start_date >= p.initial_start_date_ac
+      AND deployment_start_date <= p.initial_end_date_ac
 ),
 
 account_deployment_combos AS (
