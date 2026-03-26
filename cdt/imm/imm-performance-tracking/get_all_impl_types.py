@@ -8,6 +8,7 @@ from io import StringIO
 import pandas as pd
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from collections import defaultdict
 from cryptography.fernet import Fernet as hedears
 
 pd.set_option("display.precision", 16)
@@ -15,8 +16,9 @@ pd.set_option("display.precision", 16)
 TG_list = ["+TG-TG", "-TG+TG", "+TG", "-TG"]
 main_table_name = "imm_performance_tracking"
 temp_table_name = f"do_not_use_drop_it_temp_{main_table_name}"
-module_names_name = "module_names"
+module_names_name = "implementation_types_detail"
 composite_types_name = "composite_types"
+implementation_component_details_name = "implementation_component_details"
 email_list = [
     "huzefa.saifee@workday.com",
     "m6a0l2y5u3c9i6f3@workday.enterprise.slack.com",
@@ -50,7 +52,7 @@ def rest_api_call(query):
 
 
 def write_data(tableData, tableName):
-    if tableName in [composite_types_name, module_names_name, temp_table_name]:
+    if tableName in [composite_types_name, module_names_name, implementation_component_details_name, temp_table_name]:
         fileName = f"{tableName}.csv"
     else:
         return
@@ -63,7 +65,7 @@ def write_data(tableData, tableName):
 
 def read_data(tableName, where_clause=""):
     tableData = ""
-    if tableName in [composite_types_name, module_names_name, main_table_name]:
+    if tableName in [composite_types_name, module_names_name, implementation_component_details_name, main_table_name]:
         tableData = sp.check_output(
             f"""pharos sql run --sql "SELECT * FROM cdt.{tableName} {where_clause}" | jq -r '.result.data'""",
             shell=True,
@@ -80,6 +82,7 @@ def fetch_module_names():
     name = "implementation_type"
     module = "module"
     ox20enabled = "ox_enabled"
+    migrateable = "migrateable"
     module_names = []
     try:
         jsonResponse = rest_api_call(query)
@@ -100,7 +103,8 @@ def fetch_module_names():
                     dt["moduleName"].replace(" *", "") if dt["moduleName"] else ""
                 )
                 responseOX20Enabled = bool(dt.get("OX20Enabled", False))
-                module_names.append(dict({name: responseName, module: responseModule, ox20enabled: responseOX20Enabled}))
+                responseMigrateable = dt["migrateableBehavior"]["descriptor"] if dt.get("migrateableBehavior") else ""
+                module_names.append(dict({name: responseName, module: responseModule, ox20enabled: responseOX20Enabled, migrateable: responseMigrateable}))
         module_names = pd.DataFrame(module_names)
         print("Rest Call code ran for Module Names")
         try:
@@ -175,6 +179,52 @@ def fetch_composite_types():
     return composite_types
 
 
+def fetch_implementation_component_details():
+    query = open(f"{implementation_component_details_name}.sql").read()
+    comp_name = "component_name"
+    migrateable_col = "migrateable"
+    implementation_component_details = []
+    try:
+        jsonResponse = rest_api_call(query)
+        comp_migrate = defaultdict(set)
+        for dt in jsonResponse["data"]:
+            behavior = dt["migrateableBehavior"]["descriptor"] if dt.get("migrateableBehavior") else ""
+            for comp in dt.get("implementationComponentsForImplementationType", []):
+                componentName = ""
+                for TG in TG_list:
+                    if TG in comp["descriptor"]:
+                        componentName = comp["descriptor"].replace(TG, "").rstrip()
+                        break
+                if componentName == "":
+                    componentName = comp["descriptor"]
+                comp_migrate[componentName].add(behavior)
+        for name, behaviors in comp_migrate.items():
+            resolved = "Migrateable" if "Migrateable" in behaviors else list(behaviors)[0]
+            implementation_component_details.append(dict({comp_name: name, migrateable_col: resolved}))
+        implementation_component_details = pd.DataFrame(implementation_component_details)
+        print("Rest Call code ran for Implementation Component Details")
+        try:
+            write_data(implementation_component_details, implementation_component_details_name)
+            print("Implementation Component Details data written to CDT Schema")
+        except Exception as e:
+            email_body = f"Unable to write Implementation Component Details data to CDT Schema for {main_table_name} \n {e}"
+            print(email_body)
+            send_email(email_list, email_body, main_table_name)
+    except Exception as e1:
+        try:
+            implementation_component_details = read_data(implementation_component_details_name)
+            email_body = f"Unable to Fetch Implementation Component Details data from Rest Call, Fetched from CDT Schema for {main_table_name} \n {e1}"
+            print(email_body)
+            send_email(email_list, email_body, main_table_name)
+        except Exception as e2:
+            email_body = f"Unable to Fetch Implementation Component Details data from either Rest Call or CDT Schema for {main_table_name} \n {e1} \n {e2}"
+            print(email_body)
+            send_email(email_list, email_body, main_table_name)
+            sys.exit()
+    print(f"Number of Implementation Component Details: {len(implementation_component_details)}")
+    return implementation_component_details
+
+
 def drop_table_query(table_name):
     return f"DROP TABLE IF EXISTS cdt.{table_name}"
 
@@ -223,9 +273,10 @@ def add_stats(df1):
 
 
 def main(argv):
-    # Fetch Module Names & Compostie Types from WQL / Stored Schema
+    # Fetch Module Names, Composite Types & Implementation Component Details from WQL / Stored Schema
     module_names = fetch_module_names()
     composite_types = fetch_composite_types()
+    implementation_component_details = fetch_implementation_component_details()
 
     month_to_query_from = date_24_month_ago = datetime.today().replace(
         day=1, hour=0, minute=0, second=0, microsecond=0

@@ -17,7 +17,7 @@
       "cpus" : 1.0,
       "mem" : 32.0,
       "disk" : 64.0,
-      "uris" : [ "$HOME/cdt/imm/imm-performance-tracking/composite_types.sql", "$HOME/cdt/imm/imm-performance-tracking/create_table.sql", "$HOME/cdt/imm/imm-performance-tracking/get_all_impl_types.sql", "$HOME/cdt/imm/imm-performance-tracking/merge_data.sql", "$HOME/cdt/imm/imm-performance-tracking/module_names.sql" ],
+      "uris" : [ "$HOME/cdt/imm/imm-performance-tracking/composite_types.sql", "$HOME/cdt/imm/imm-performance-tracking/create_table.sql", "$HOME/cdt/imm/imm-performance-tracking/get_all_impl_types.sql", "$HOME/cdt/imm/imm-performance-tracking/implementation_component_details.sql", "$HOME/cdt/imm/imm-performance-tracking/merge_data.sql", "$HOME/cdt/imm/imm-performance-tracking/implementation_types_detail.sql" ],
       "variables" : ""
     }
   } ],
