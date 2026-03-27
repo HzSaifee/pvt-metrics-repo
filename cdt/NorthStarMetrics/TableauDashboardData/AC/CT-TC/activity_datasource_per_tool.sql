@@ -260,10 +260,10 @@ enriched_events AS (
         COALESCE(sad.industry, 'Unknown') AS industry,
         COALESCE(sad.super_industry, 'Unknown') AS super_industry,
         COALESCE(sad.segment_size_l1, 'Unknown') AS segment_size_l1,
-        COALESCE(adc.deployment_product_area, 'No Active Deployment') AS deployment_product_area,
-        COALESCE(adc.deployment_partner, 'No Active Deployment') AS deployment_partner,
-        COALESCE(adc.deployment_type, 'No Active Deployment') AS deployment_type,
-        COALESCE(adc.deployment_phase, 'No Active Deployment') AS deployment_phase,
+        COALESCE(adc.deployment_product_area, 'No Deployment') AS deployment_product_area,
+        COALESCE(adc.deployment_partner, 'No Deployment') AS deployment_partner,
+        COALESCE(adc.deployment_type, 'No Deployment') AS deployment_type,
+        COALESCE(adc.deployment_phase, 'No Deployment') AS deployment_phase,
         adc.latest_deployment_start
     FROM combined_tool_events cte
     INNER JOIN dw.lookup_db.sfdc_customer_tenants sfdc 

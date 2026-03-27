@@ -8,6 +8,8 @@
 --   - Rolling window changed from 12 months to 6 months
 --   - Added biweekly_period column (semi-monthly grain) derived from wd_event_date
 --   - Semi-monthly logic: Days 1-15 → 1st of month, Days 16-31 → 16th of month
+--   - Deployment scope: 6mo Active (by start date) + 6mo Active/Complete (by completion date)
+--   - Default value for unmatched deployments: 'No Deployment'
 --
 -- Charts Supported:
 --   - 4.1 Foundation Recipe Builds: COUNTD(customer_billing_id) by biweekly_period
@@ -22,6 +24,10 @@
 --   - customer_sf_account_id included for Workday GO join capability
 --   - Rolling 6-month window with semi-monthly grain
 --
+-- Deployment Scope:
+--   - Active deployments started in last 6 months
+--   - Active + Complete deployments with completion date in last 6 months
+--
 -- Filter Columns Available:
 --   - enterprise_size_group, segment, super_industry (from sfdc_account_details)
 --   - deployment_product_area, deployment_partner, deployment_phase, deployment_type (from sfdc_deployments)
@@ -30,7 +36,7 @@
 --
 -- IMPORTANT: Use COUNTD(customer_billing_id) in Tableau, not COUNT(*)
 --            Rows are expanded by deployment - same billing_id appears multiple times
---            if customer has multiple active deployments.
+--            if customer has multiple deployments in scope.
 -- =============================================================================
 
 -- =============================================================================
@@ -71,10 +77,10 @@ SELECT
     COALESCE(sad.segment, 'Unknown') AS segment,
     COALESCE(sad.super_industry, 'Unknown') AS super_industry,
     -- Filter columns from sfdc_deployments (aligned naming with deployment_ prefix)
-    COALESCE(d.product_area, 'No Active Deployment') AS deployment_product_area,
-    COALESCE(d.priming_partner_name, 'No Active Deployment') AS deployment_partner,
-    COALESCE(d.phase, 'No Active Deployment') AS deployment_phase,
-    COALESCE(d.type, 'No Active Deployment') AS deployment_type,
+    COALESCE(d.product_area, 'No Deployment') AS deployment_product_area,
+    COALESCE(d.priming_partner_name, 'No Deployment') AS deployment_partner,
+    COALESCE(d.phase, 'No Deployment') AS deployment_phase,
+    COALESCE(d.type, 'No Deployment') AS deployment_type,
     -- Deployment details (for reference/filtering)
     d.sf_deployment_id,
     DATE_TRUNC('month', CAST(d.deployment_start_date AS DATE)) AS deployment_month
@@ -84,8 +90,13 @@ INNER JOIN dw.lookup_db.sfdc_account_details sad
     ON tb.customer_billing_id = sad.billing_id
 LEFT JOIN dw.lookup_db.sfdc_deployments d 
     ON sad.sf_account_id = d.customer_sf_account_id
-    AND d.overall_status = 'Active'
-    AND d.deployment_start_date > DATE '2023-01-01'
+    AND (
+        (d.overall_status = 'Active'
+         AND CAST(d.deployment_start_date AS DATE) >= dr.start_date)
+        OR
+        (d.overall_status IN ('Complete', 'Active')
+         AND CAST(d.deployment_completion_date AS DATE) >= dr.start_date)
+    )
 WHERE tb.build_type = 'Foundation Tenant Build'
   -- Rolling 6-month semi-monthly window
   AND CAST(tb.wd_event_date AS DATE) >= dr.start_date
@@ -114,10 +125,10 @@ SELECT
     COALESCE(sad.segment, 'Unknown') AS segment,
     COALESCE(sad.super_industry, 'Unknown') AS super_industry,
     -- Filter columns from sfdc_deployments (aligned naming with deployment_ prefix)
-    COALESCE(d.product_area, 'No Active Deployment') AS deployment_product_area,
-    COALESCE(d.priming_partner_name, 'No Active Deployment') AS deployment_partner,
-    COALESCE(d.phase, 'No Active Deployment') AS deployment_phase,
-    COALESCE(d.type, 'No Active Deployment') AS deployment_type,
+    COALESCE(d.product_area, 'No Deployment') AS deployment_product_area,
+    COALESCE(d.priming_partner_name, 'No Deployment') AS deployment_partner,
+    COALESCE(d.phase, 'No Deployment') AS deployment_phase,
+    COALESCE(d.type, 'No Deployment') AS deployment_type,
     -- Deployment details (for reference/filtering)
     d.sf_deployment_id,
     DATE_TRUNC('month', CAST(d.deployment_start_date AS DATE)) AS deployment_month
@@ -127,8 +138,13 @@ INNER JOIN dw.lookup_db.sfdc_account_details sad
     ON tb.customer_billing_id = sad.billing_id
 LEFT JOIN dw.lookup_db.sfdc_deployments d 
     ON sad.sf_account_id = d.customer_sf_account_id
-    AND d.overall_status = 'Active'
-    AND d.deployment_start_date > DATE '2023-01-01'
+    AND (
+        (d.overall_status = 'Active'
+         AND CAST(d.deployment_start_date AS DATE) >= dr.start_date)
+        OR
+        (d.overall_status IN ('Complete', 'Active')
+         AND CAST(d.deployment_completion_date AS DATE) >= dr.start_date)
+    )
 WHERE tb.build_type = 'Migration Recipe'
   -- Rolling 6-month semi-monthly window
   AND CAST(tb.wd_event_date AS DATE) >= dr.start_date

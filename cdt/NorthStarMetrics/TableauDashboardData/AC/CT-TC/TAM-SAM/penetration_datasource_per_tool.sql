@@ -215,11 +215,11 @@ enriched_activity AS (
         COALESCE(sad.industry, 'Unknown') AS industry,
         COALESCE(sad.super_industry, 'Unknown') AS super_industry,
         COALESCE(sad.segment_size_l1, 'Unknown') AS segment_size_l1,
-        COALESCE(adc.deployment_product_area, 'No Active Deployment') AS deployment_product_area,
-        COALESCE(adc.deployment_partner, 'No Active Deployment') AS deployment_partner,
-        COALESCE(adc.deployment_type, 'No Active Deployment') AS deployment_type,
-        COALESCE(adc.deployment_phase, 'No Active Deployment') AS deployment_phase,
-        COALESCE(adc.deployment_overall_status, 'No Active Deployment') AS deployment_overall_status,
+        COALESCE(adc.deployment_product_area, 'No Deployment') AS deployment_product_area,
+        COALESCE(adc.deployment_partner, 'No Deployment') AS deployment_partner,
+        COALESCE(adc.deployment_type, 'No Deployment') AS deployment_type,
+        COALESCE(adc.deployment_phase, 'No Deployment') AS deployment_phase,
+        COALESCE(adc.deployment_overall_status, 'No Deployment') AS deployment_overall_status,
         adc.latest_deployment_start
     FROM combined_tool_events cte
     INNER JOIN dw.lookup_db.sfdc_customer_tenants sfdc 
@@ -380,11 +380,11 @@ active_customers_base AS (
         COALESCE(sad.industry, 'Unknown') AS industry,
         COALESCE(sad.super_industry, 'Unknown') AS super_industry,
         COALESCE(sad.segment_size_l1, 'Unknown') AS segment_size_l1,
-        COALESCE(acd.deployment_product_area, 'No Active Deployment') AS deployment_product_area,
-        COALESCE(acd.deployment_partner, 'No Active Deployment') AS deployment_partner,
-        COALESCE(acd.deployment_type, 'No Active Deployment') AS deployment_type,
-        COALESCE(acd.deployment_phase, 'No Active Deployment') AS deployment_phase,
-        COALESCE(acd.deployment_overall_status, 'No Active Deployment') AS deployment_overall_status,
+        COALESCE(acd.deployment_product_area, 'No Deployment') AS deployment_product_area,
+        COALESCE(acd.deployment_partner, 'No Deployment') AS deployment_partner,
+        COALESCE(acd.deployment_type, 'No Deployment') AS deployment_type,
+        COALESCE(acd.deployment_phase, 'No Deployment') AS deployment_phase,
+        COALESCE(acd.deployment_overall_status, 'No Deployment') AS deployment_overall_status,
         acd.deployment_start_date
     FROM dw.lookup_db.sfdc_customer_tenants sct
     CROSS JOIN Parameters p

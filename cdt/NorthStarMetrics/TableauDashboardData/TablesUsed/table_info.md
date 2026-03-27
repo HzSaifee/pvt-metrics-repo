@@ -509,6 +509,62 @@
 
 ---
 
+### TABLE: loadapirequests
+
+| Column | Type |
+|--------|------|
+| time | TIMESTAMP |
+| customer | VARCHAR |
+| integration | VARCHAR |
+| commonrequestid | VARCHAR |
+| originator | VARCHAR |
+| workday_version | VARCHAR |
+| implementation_component | VARCHAR |
+| validate_only | VARCHAR |
+| enable_bulk | VARCHAR |
+| max_errors | BIGINT |
+| response_format | VARCHAR |
+| payload_size | BIGINT |
+| correlation_id | VARCHAR |
+| http_status_code | BIGINT |
+| elapsed_time | BIGINT |
+| bulk_lite_enabled | BOOLEAN |
+| swh_version_year | VARCHAR |
+| swh_version_week | VARCHAR |
+| swh_version_build | VARCHAR |
+| swh_kafka_cluster | VARCHAR |
+| swh_kafka_partition | BIGINT |
+| swh_kafka_offset | BIGINT |
+| implementation_type | VARCHAR |
+| wd_env_logical | VARCHAR |
+| wd_env_status | VARCHAR |
+| wd_dc_type | VARCHAR |
+| wd_dc_physical | VARCHAR |
+| wd_env_physical | VARCHAR |
+| wd_env | VARCHAR |
+| wd_server | VARCHAR |
+| wd_service_instance | VARCHAR |
+| api_version | VARCHAR |
+| authentication_type | VARCHAR |
+| cluster | VARCHAR |
+| source | VARCHAR |
+| wd_datatype | VARCHAR |
+| wd_dc_provider | VARCHAR |
+| wd_env_id | VARCHAR |
+| wd_logical | VARCHAR |
+| wd_logical_type | VARCHAR |
+| wd_objectname | VARCHAR |
+| wd_owner | VARCHAR |
+| wd_platform | VARCHAR |
+| wd_server_role | VARCHAR |
+| wd_service | VARCHAR |
+| wd_event_date | VARCHAR |
+| wd_env_type | VARCHAR |
+| processed_at_time | BIGINT |
+| schema_hashcode | BIGINT |
+
+---
+
 ### TABLE: dataload_metrics
 
 | Column | Type |
