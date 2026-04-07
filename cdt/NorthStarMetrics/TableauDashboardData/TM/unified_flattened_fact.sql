@@ -2,7 +2,7 @@
 -- UNIFIED FLATTENED FACT TABLE
 -- =============================================================================
 -- Purpose: Single flat table for tool usage analysis and penetration calculations.
---          Each row = customer x deployment x tool event.
+--          Each row = customer x deployment x tool event (x migration for migrated rows).
 --          Data population (enrichment) is SEPARATE from qualification logic:
 --            - Deployment details populated broadly for all relevant deployments
 --            - Qualification flags computed independently per row
@@ -16,7 +16,12 @@
 -- Tools: Change Tracker, Tenant Compare, Adhoc Scope, Foundation Recipe,
 --        Migration Recipe  (tool_group: CT_TC_AS, FR_MR)
 --
--- Grain: One row per tool event per deployment per customer.
+-- Grain: One row per tool event per migration per deployment per customer.
+--        Tool events with no migration get one row (NULL migration columns).
+--        Tool events with N migrations get N rows (same tool_instance_id,
+--        different migration_id).
+--        Migration-only rows (no tool event in window) get one row per migration
+--        with biweekly_period=NULL, created_by=NULL (excluded from tool charts).
 --        Customers with no tool events still get rows (NULL tool columns).
 --        Accounts WITHOUT deployments get nth=0 only.
 --        Accounts WITH qualifying deployments get nth=1,2,3...
@@ -24,14 +29,21 @@
 --
 -- Event rows include ALL deployments (even excluded scopes) for filtering.
 -- No-event rows exclude excluded-scope deployments (clean denominator).
+-- Final SELECT uses LEFT JOIN (not UNION ALL) to avoid doubling Trino stages.
 --
 -- Time window: Rolling 6-month parameterized biweekly grain.
+--
+-- Columns:
+--   created_by               — who created/used the tool (from tool event log)
+--   migrated_by              — who pushed the migration (from migration_event_log)
+--   biweekly_period          — biweekly period of tool event
+--   migration_biweekly_period — biweekly period of migration push
 --
 -- Tableau usage:
 --   Adoption rate  = COUNTD(acct WHERE tool_category IS NOT NULL AND qualifies...)
 --                    / COUNTD(acct WHERE is_active_customer)
---   Usage volume   = COUNT(tool events) GROUP BY biweekly_period, tool_group
---   Migration      = COUNTD(migration_id) GROUP BY migration_biweekly_period
+--   Tool usage     = COUNTD(tool_instance_id) GROUP BY created_by, biweekly_period
+--   Migration      = COUNTD(migration_id) GROUP BY migrated_by, migration_biweekly_period
 -- =============================================================================
 
 
@@ -57,24 +69,40 @@ WITH Parameters AS (
         END AS initial_end_date_ac
 ),
 
--- Partition-pruned scopes_input_type_metrics (links CT/TC wids to scope_external_ids)
-scopes_input_filtered AS (
+-- Date-filtered scope-input linkage (for Adhoc anti-join within the rolling window).
+-- input_id IS NOT NULL excludes rows with no tool linkage (blank input_type)
+-- so those scopes can correctly fall through to the Adhoc path.
+scopes_input_for_events AS (
     SELECT DISTINCT
         input_id,
         scope_external_id
     FROM dw.swh.scopes_input_type_metrics
     CROSS JOIN Parameters p
-    WHERE wd_event_date >= format_datetime(p.start_date, 'yyyy-MM-dd')
+    WHERE input_id IS NOT NULL
+      AND wd_event_date >= format_datetime(p.start_date, 'yyyy-MM-dd')
       AND wd_event_date < format_datetime(p.end_date, 'yyyy-MM-dd')
 ),
 
+-- Unfiltered scope-input linkage (for migration attribution regardless of tool creation date).
+-- input_id IS NOT NULL for same reason as above.
+scopes_input_for_migration AS (
+    SELECT DISTINCT
+        input_id,
+        scope_external_id
+    FROM dw.swh.scopes_input_type_metrics
+    WHERE input_id IS NOT NULL
+      AND wd_event_date IS NOT NULL
+),
+
 -- Partition-pruned migration_event_log (push migrations with Materialized Scopes)
--- Extended with migration_id and migration_biweekly_period for verification
+-- Includes migrated_by so the migration's user_type flows to the final output
 migration_filtered AS (
     SELECT
         m.event_id,
         m.source_object_id,
         m.migration_id,
+        m.user_type AS migrated_by,
+        m.cc_tenant AS tenant,
         CASE
             WHEN DAY(CAST(m.time AS DATE)) <= 15
                 THEN DATE_ADD('day', 14, DATE_TRUNC('month', CAST(m.time AS DATE)))
@@ -84,24 +112,46 @@ migration_filtered AS (
     CROSS JOIN Parameters p
     WHERE m.event_type = 'push_migration'
       AND m.source_object_type = 'Materialized Scope'
-      AND m.wd_event_date IS NOT NULL
       AND m.wd_event_date >= format_datetime(p.start_date, 'yyyy-MM-dd')
       AND m.wd_event_date < format_datetime(p.end_date, 'yyyy-MM-dd')
       AND m.time >= p.start_date
       AND m.time < p.end_date
 ),
 
--- Distinct scope_external_ids linked to CT/TC (anti-join target for adhoc exclusion)
+-- Distinct scope_external_ids linked to any tool input within the date window (Adhoc anti-join target)
 scopes_with_input AS (
     SELECT DISTINCT scope_external_id
-    FROM scopes_input_filtered
+    FROM scopes_input_for_events
 ),
+
+-- Distinct (tool_instance_id -> migration) links via unfiltered scope mapping.
+-- Used by CT and TC events to expand to one row per migration.
+-- DISTINCT prevents duplicate rows when one input_id maps to multiple scope_external_ids
+-- that resolve to the same migration_id.
+tool_migration_links AS (
+    SELECT DISTINCT
+        s.input_id AS tool_instance_id,
+        m.migration_id,
+        m.migrated_by,
+        m.migration_biweekly_period
+    FROM scopes_input_for_migration s
+    INNER JOIN migration_filtered m
+        ON s.scope_external_id = m.source_object_id
+),
+
+-- adhoc_migration_links removed: inlined into adhoc_scope_events as a direct
+-- LEFT JOIN to migration_filtered, saving one CTE expansion of migration_filtered.
 
 
 -- =============================================================================
--- LAYER 1: RAW TOOL EVENTS (4 CTEs)
--- CT/TC/Adhoc output raw tenant (resolved to sf_account_id later in one join)
--- FR/MR resolve via billing_id -> sfdc_account_details directly
+-- LAYER 1: RAW TOOL EVENTS + MIGRATION-ONLY FALLBACK
+-- =============================================================================
+-- CT/TC/Adhoc: one row per tool event per migration (LEFT JOIN to migration links).
+--   - Events with 0 migrations: 1 row, migration columns NULL
+--   - Events with N migrations: N rows, same tool_instance_id, different migration_id
+-- Migration-only: migrations not captured by CT/TC/Adhoc events (tool outside window,
+--   no tool linkage, or orphan scopes). biweekly_period=NULL, created_by=NULL.
+-- FR/MR: resolved via billing_id -> sfdc_account_details directly.
 -- =============================================================================
 
 -- Change Tracker events (raw tenant, not yet resolved to customer_sf_account_id)
@@ -113,24 +163,24 @@ ct_events AS (
             ELSE DATE_ADD('day', -1, DATE_TRUNC('month', DATE_ADD('month', 1, CAST(ct.time AS DATE))))
         END AS biweekly_period,
         ct.time AS interaction_exact_date,
-        ct.user_type,
+        ct.user_type AS created_by,
         ct.tenant,
         'Change Tracker' AS tool_category,
         ct.change_tracker_wid AS tool_instance_id,
-        MAX(m.migration_id) AS migration_id,
-        MAX(m.migration_biweekly_period) AS migration_biweekly_period,
-        CASE WHEN MAX(m.event_id) IS NOT NULL THEN 'Migrated' ELSE 'Created' END AS interaction_status,
+        tml.migration_id,
+        tml.migration_biweekly_period,
+        tml.migrated_by,
+        CASE WHEN tml.migration_id IS NOT NULL THEN 'Migrated' ELSE 'Created' END AS interaction_status,
         CAST(NULL AS VARCHAR) AS build_status
     FROM dw.swh.change_tracker_event_log ct
     CROSS JOIN Parameters p
-    LEFT JOIN scopes_input_filtered s ON ct.change_tracker_wid = s.input_id
-    LEFT JOIN migration_filtered m ON s.scope_external_id = m.source_object_id
+    LEFT JOIN tool_migration_links tml
+        ON ct.change_tracker_wid = tml.tool_instance_id
     WHERE ct.wd_event_date >= format_datetime(p.start_date, 'yyyy-MM-dd')
       AND ct.wd_event_date < format_datetime(p.end_date, 'yyyy-MM-dd')
       AND ct.time >= p.start_date
       AND ct.time < p.end_date
       AND ct.user_type IN ('Customer', 'Implementer')
-    GROUP BY 1, 2, 3, 4, 5, 6, 10
 ),
 
 -- Tenant Compare events (raw tenant, not yet resolved)
@@ -142,27 +192,29 @@ tc_events AS (
             ELSE DATE_ADD('day', -1, DATE_TRUNC('month', DATE_ADD('month', 1, CAST(tc.time AS DATE))))
         END AS biweekly_period,
         tc.time AS interaction_exact_date,
-        tc.user_type,
+        tc.user_type AS created_by,
         tc.tenant,
         'Tenant Compare' AS tool_category,
         tc.tenant_compare_scope_wid AS tool_instance_id,
-        MAX(m.migration_id) AS migration_id,
-        MAX(m.migration_biweekly_period) AS migration_biweekly_period,
-        CASE WHEN MAX(m.event_id) IS NOT NULL THEN 'Migrated' ELSE 'Created' END AS interaction_status,
+        tml.migration_id,
+        tml.migration_biweekly_period,
+        tml.migrated_by,
+        CASE WHEN tml.migration_id IS NOT NULL THEN 'Migrated' ELSE 'Created' END AS interaction_status,
         CAST(NULL AS VARCHAR) AS build_status
     FROM dw.swh.tenant_compare_event_log tc
     CROSS JOIN Parameters p
-    LEFT JOIN scopes_input_filtered s ON tc.tenant_compare_scope_wid = s.input_id
-    LEFT JOIN migration_filtered m ON s.scope_external_id = m.source_object_id
+    LEFT JOIN tool_migration_links tml
+        ON tc.tenant_compare_scope_wid = tml.tool_instance_id
     WHERE tc.wd_event_date >= format_datetime(p.start_date, 'yyyy-MM-dd')
       AND tc.wd_event_date < format_datetime(p.end_date, 'yyyy-MM-dd')
       AND tc.time >= p.start_date
       AND tc.time < p.end_date
       AND tc.user_type IN ('Customer', 'Implementer')
-    GROUP BY 1, 2, 3, 4, 5, 6, 10
 ),
 
--- Adhoc Scope events (scopes NOT linked to CT/TC, raw tenant)
+-- Adhoc Scope events (scopes NOT linked to CT/TC within the date window, raw tenant)
+-- Migration link inlined: LEFT JOIN to migration_filtered directly instead of via
+-- adhoc_migration_links CTE, avoiding an extra expansion of migration_filtered.
 adhoc_scope_events AS (
     SELECT
         CASE
@@ -171,25 +223,105 @@ adhoc_scope_events AS (
             ELSE DATE_ADD('day', -1, DATE_TRUNC('month', DATE_ADD('month', 1, CAST(sm.time AS DATE))))
         END AS biweekly_period,
         sm.time AS interaction_exact_date,
-        sm.user_type,
+        sm.user_type AS created_by,
         sm.tenant_name AS tenant,
         'Adhoc Scope' AS tool_category,
         sm.scope_external_id AS tool_instance_id,
-        MAX(m.migration_id) AS migration_id,
-        MAX(m.migration_biweekly_period) AS migration_biweekly_period,
-        CASE WHEN MAX(m.event_id) IS NOT NULL THEN 'Migrated' ELSE 'Created' END AS interaction_status,
+        mf.migration_id,
+        mf.migration_biweekly_period,
+        mf.migrated_by,
+        CASE WHEN mf.migration_id IS NOT NULL THEN 'Migrated' ELSE 'Created' END AS interaction_status,
         CAST(NULL AS VARCHAR) AS build_status
     FROM dw.swh.scopes_metrics sm
     CROSS JOIN Parameters p
     LEFT JOIN scopes_with_input swi ON sm.scope_external_id = swi.scope_external_id
-    LEFT JOIN migration_filtered m ON sm.scope_external_id = m.source_object_id
+    LEFT JOIN migration_filtered mf ON sm.scope_external_id = mf.source_object_id
     WHERE sm.wd_event_date >= format_datetime(p.start_date, 'yyyy-MM-dd')
       AND sm.wd_event_date < format_datetime(p.end_date, 'yyyy-MM-dd')
       AND sm.time >= p.start_date
       AND sm.time < p.end_date
       AND sm.user_type IN ('Customer', 'Implementer')
       AND swi.scope_external_id IS NULL  -- anti-join: exclude scopes linked to CT/TC
-    GROUP BY 1, 2, 3, 4, 5, 6, 10
+),
+
+-- Migration-only events: migrations in migration_filtered NOT already captured by
+-- ct_events, tc_events, or adhoc_scope_events.  These are migrations where:
+--   (a) the tool was created outside the 6-month window (CT/TC with no event in window), or
+--   (b) the scope has no tool linkage (NULL input_id in scopes_input), or
+--   (c) the scope exists in neither scopes_input nor scopes_metrics (orphan).
+-- biweekly_period and created_by are NULL so these rows never appear in tool usage charts.
+-- migration_biweekly_period and migrated_by have values for migration charts.
+--
+-- IMPORTANT: Anti-join checks use direct base table scans (partition-pruned) instead of
+-- referencing ct_events/tc_events/adhoc_scope_events CTEs. Trino inlines CTEs at each
+-- reference point, so re-referencing heavy event CTEs would double the stage count.
+migration_only_events AS (
+    SELECT
+        CAST(NULL AS DATE) AS biweekly_period,
+        CAST(NULL AS TIMESTAMP) AS interaction_exact_date,
+        CAST(NULL AS VARCHAR) AS created_by,
+        mf.tenant,
+        COALESCE(scope_tool.tool_category, 'Adhoc Scope') AS tool_category,
+        COALESCE(scope_tool.input_id, mf.source_object_id) AS tool_instance_id,
+        mf.migration_id,
+        mf.migration_biweekly_period,
+        mf.migrated_by,
+        'Migrated' AS interaction_status,
+        CAST(NULL AS VARCHAR) AS build_status
+    FROM migration_filtered mf
+    LEFT JOIN (
+        SELECT DISTINCT
+            input_id,
+            scope_external_id,
+            CASE
+                WHEN LOWER(input_type) LIKE '%change tracker%' THEN 'Change Tracker'
+                WHEN LOWER(input_type) LIKE '%tenant compare%' THEN 'Tenant Compare'
+            END AS tool_category
+        FROM dw.swh.scopes_input_type_metrics
+        WHERE input_id IS NOT NULL
+          AND wd_event_date IS NOT NULL
+    ) scope_tool ON mf.source_object_id = scope_tool.scope_external_id
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM dw.swh.change_tracker_event_log ct
+        CROSS JOIN Parameters p
+        INNER JOIN dw.swh.scopes_input_type_metrics si
+            ON ct.change_tracker_wid = si.input_id
+        WHERE si.scope_external_id = mf.source_object_id
+          AND si.input_id IS NOT NULL
+          AND si.wd_event_date IS NOT NULL
+          AND ct.wd_event_date >= format_datetime(p.start_date, 'yyyy-MM-dd')
+          AND ct.wd_event_date < format_datetime(p.end_date, 'yyyy-MM-dd')
+          AND ct.time >= p.start_date AND ct.time < p.end_date
+          AND ct.user_type IN ('Customer', 'Implementer')
+    )
+    AND NOT EXISTS (
+        SELECT 1
+        FROM dw.swh.tenant_compare_event_log tc
+        CROSS JOIN Parameters p
+        INNER JOIN dw.swh.scopes_input_type_metrics si
+            ON tc.tenant_compare_scope_wid = si.input_id
+        WHERE si.scope_external_id = mf.source_object_id
+          AND si.input_id IS NOT NULL
+          AND si.wd_event_date IS NOT NULL
+          AND tc.wd_event_date >= format_datetime(p.start_date, 'yyyy-MM-dd')
+          AND tc.wd_event_date < format_datetime(p.end_date, 'yyyy-MM-dd')
+          AND tc.time >= p.start_date AND tc.time < p.end_date
+          AND tc.user_type IN ('Customer', 'Implementer')
+    )
+    AND NOT EXISTS (
+        SELECT 1
+        FROM dw.swh.scopes_metrics sm
+        CROSS JOIN Parameters p
+        LEFT JOIN scopes_with_input swi
+            ON sm.scope_external_id = swi.scope_external_id
+        WHERE sm.scope_external_id = mf.source_object_id
+          AND sm.wd_event_date >= format_datetime(p.start_date, 'yyyy-MM-dd')
+          AND sm.wd_event_date < format_datetime(p.end_date, 'yyyy-MM-dd')
+          AND sm.time >= p.start_date AND sm.time < p.end_date
+          AND sm.user_type IN ('Customer', 'Implementer')
+          AND swi.scope_external_id IS NULL
+    )
 ),
 
 -- Foundation Recipe + Migration Recipe events (combined, resolved via billing_id)
@@ -214,9 +346,10 @@ fr_mr_events AS (
         END AS tool_instance_id,
         CAST(NULL AS VARCHAR) AS migration_id,
         CAST(NULL AS DATE) AS migration_biweekly_period,
+        CAST(NULL AS VARCHAR) AS migrated_by,
         'Built' AS interaction_status,
         tb.build_status,
-        'Implementer' AS user_type
+        'Implementer' AS created_by
     FROM dw.swh.tenant_build tb
     CROSS JOIN Parameters p
     INNER JOIN dw.lookup_db.sfdc_account_details sad
@@ -243,15 +376,18 @@ ct_tc_adhoc_resolved AS (
         raw_events.tool_instance_id,
         raw_events.migration_id,
         raw_events.migration_biweekly_period,
+        raw_events.migrated_by,
         raw_events.interaction_status,
         raw_events.build_status,
-        raw_events.user_type
+        raw_events.created_by
     FROM (
         SELECT * FROM ct_events
         UNION ALL
         SELECT * FROM tc_events
         UNION ALL
         SELECT * FROM adhoc_scope_events
+        UNION ALL
+        SELECT * FROM migration_only_events
     ) raw_events
     INNER JOIN dw.lookup_db.sfdc_customer_tenants sct
         ON LOWER(raw_events.tenant) = LOWER(sct.tenant_name)
@@ -269,9 +405,10 @@ all_tool_events AS (
         tool_instance_id,
         migration_id,
         migration_biweekly_period,
+        migrated_by,
         interaction_status,
         build_status,
-        user_type
+        created_by
     FROM ct_tc_adhoc_resolved
 
     UNION ALL
@@ -285,9 +422,10 @@ all_tool_events AS (
         tool_instance_id,
         migration_id,
         migration_biweekly_period,
+        migrated_by,
         interaction_status,
         build_status,
-        user_type
+        created_by
     FROM fr_mr_events
 ),
 
@@ -534,12 +672,18 @@ customer_deployment_base AS (
 
 
 -- =============================================================================
--- FINAL SELECT: INNER JOIN for event rows + NOT EXISTS for no-event rows
+-- FINAL SELECT: Single LEFT JOIN replaces INNER JOIN + UNION ALL + NOT EXISTS.
+-- Trino inlines CTEs at each reference, so referencing customer_deployment_base
+-- and all_tool_events once instead of twice halves the stage count.
 -- =============================================================================
+-- Event rows:    ate columns populated, all deployments included for enrichment
+-- No-event rows: ate columns NULL, only non-excluded deployments (clean denominator)
 
--- Part 1: Customers WITH tool events — ALL deployments included for enrichment/filtering
 SELECT
-    ate.biweekly_period,
+    CASE
+        WHEN ate.customer_sf_account_id IS NULL THEN p.end_date
+        ELSE ate.biweekly_period
+    END AS biweekly_period,
     cdb.customer_sf_account_id,
     COALESCE(ate.billing_id, cdb.billing_id) AS billing_id,
     cdb.account_name,
@@ -564,48 +708,11 @@ SELECT
     ate.tool_instance_id,
     ate.migration_id,
     ate.migration_biweekly_period,
+    ate.migrated_by,
     ate.interaction_status,
     ate.interaction_exact_date,
     ate.build_status,
-    ate.user_type,
-    cdb.enterprise_size_group,
-    cdb.segment,
-    cdb.industry,
-    cdb.super_industry,
-    cdb.segment_size_l1
-FROM customer_deployment_base cdb
-INNER JOIN all_tool_events ate
-    ON cdb.customer_sf_account_id = ate.customer_sf_account_id
-
-UNION ALL
-
--- Part 2: Customers WITHOUT tool events — only non-excluded deployments (denominator rows)
-SELECT
-    p.end_date AS biweekly_period,
-    cdb.customer_sf_account_id,
-    cdb.billing_id,
-    cdb.account_name,
-    cdb.is_active_customer,
-    cdb.has_active_deployment,
-    cdb.nth_active_deployment,
-    cdb.sf_deployment_id,
-    cdb.deployment_start_date,
-    cdb.deployment_phase,
-    cdb.deployment_product_area,
-    cdb.deployment_partner,
-    cdb.deployment_type,
-    cdb.deployment_overall_status,
-    cdb.qualifies_as_active,
-    cdb.is_excluded_scope,
-    CAST(NULL AS VARCHAR) AS tool_category,
-    CAST(NULL AS VARCHAR) AS tool_group,
-    CAST(NULL AS VARCHAR) AS tool_instance_id,
-    CAST(NULL AS VARCHAR) AS migration_id,
-    CAST(NULL AS DATE) AS migration_biweekly_period,
-    CAST(NULL AS VARCHAR) AS interaction_status,
-    CAST(NULL AS TIMESTAMP) AS interaction_exact_date,
-    CAST(NULL AS VARCHAR) AS build_status,
-    ut.user_type,
+    ate.created_by,
     cdb.enterprise_size_group,
     cdb.segment,
     cdb.industry,
@@ -613,10 +720,8 @@ SELECT
     cdb.segment_size_l1
 FROM customer_deployment_base cdb
 CROSS JOIN Parameters p
-CROSS JOIN (VALUES ('Customer'), ('Implementer')) AS ut(user_type)
-WHERE NOT EXISTS (
-    SELECT 1 FROM all_tool_events ate
-    WHERE ate.customer_sf_account_id = cdb.customer_sf_account_id
-)
-AND cdb.is_excluded_scope = FALSE
-ORDER BY customer_sf_account_id, nth_active_deployment NULLS LAST, biweekly_period
+LEFT JOIN all_tool_events ate
+    ON cdb.customer_sf_account_id = ate.customer_sf_account_id
+WHERE ate.customer_sf_account_id IS NOT NULL
+   OR cdb.is_excluded_scope = FALSE
+ORDER BY cdb.customer_sf_account_id, cdb.nth_active_deployment NULLS LAST, 1
