@@ -1,5 +1,5 @@
 .DS_Store
-cdt/NorthStarMetrics/TableauDashboardData/TablesUsed/csv
+Tableau/NorthStarMetrics/TableauDashboardData/TablesUsed/csv
 sfdc_account_details.csv
 sfdc_customer_tenants.csv
 sfdc_customer_account_tenants.csv
@@ -7,6 +7,7 @@ sfdc_deployments.csv
 sfdc_account_tenant_map.csv
 change_tracker_event_log.csv
 tenant_compare_event_log.csv
+FTB.csv
 scopes_metrics.csv
 scopes_input_type_metrics.csv
 migration_event_log.csv
