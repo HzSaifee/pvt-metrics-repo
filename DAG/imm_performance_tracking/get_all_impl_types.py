@@ -86,7 +86,7 @@ def write_data(tableData, tableName):
     if tableName not in [composite_types_name, module_names_name, implementation_component_details_name, temp_table_name]:
         return
     
-    fileName = f"/tmp/{tableName}.csv"
+    fileName = os.path.join(DAG_HOME, f"{tableName}.csv")
     tableData.to_csv(fileName, index=False)
     
     cmd = f"pharos sql import-to-table --file {fileName} --db cdt --table {tableName} --mode overwrite"
