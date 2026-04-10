@@ -439,7 +439,7 @@ def execute_etl_flow(**kwargs):
         # Fetch SWH Data
         str_month_to_query_from = month_to_query_from.strftime("%Y-%m-%d")
         swh_data_query = render_sql(
-            "get_all_impl_types.sql", oldest_month_value=str_month_to_query_from
+            "imm_performance_tracking.sql", oldest_month_value=str_month_to_query_from
         )
         swh_csv = run_cli(
             f'pharos spark run-sql --sql "{swh_data_query}"', fetch_data=True
