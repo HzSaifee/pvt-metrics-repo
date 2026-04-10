@@ -84,6 +84,10 @@ def execute_scopes_metrics(**kwargs):
         # 1. Fetch the DataFrame using subprocess + CLI
         df = fetch_data(sql_file, str_month_to_query_from)
         print(f"Fetched {len(df)} rows for {sql_file}.")
+
+        if df.empty:
+            print(f"No data returned for {sql_file} — skipping save to Nimbus.")
+            continue
         
         # 2. Save the dataframe to Nimbus, overwriting the table
         # We use the sql_file name as the table name (e.g., 'metrics', 'input_type_metrics')
