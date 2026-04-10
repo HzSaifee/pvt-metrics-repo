@@ -11,7 +11,7 @@ from airflow.operators.python import PythonOperator
 from airflow.utils.email import send_email
 import pendulum
 
-from utils import render_sql, run_cli
+from team_hive.utils import render_sql, run_cli
 
 # --- Configuration & Constants ---
 DAG_HOME = os.path.dirname(os.path.abspath(__file__))

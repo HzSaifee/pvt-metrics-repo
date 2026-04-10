@@ -9,7 +9,7 @@ from airflow.utils.email import send_email
 import pendulum
 from com.workday.pharos.persistence.pharos_persistence import PharosPersistence
 
-from utils import render_sql, run_cli_fetch_json
+from team_hive.utils import render_sql, run_cli_fetch_json
 
 # --- Configuration & Constants ---
 DAG_HOME = os.path.dirname(os.path.abspath(__file__))
