@@ -445,6 +445,10 @@ def execute_etl_flow(**kwargs):
         )
         temp_swh_data = pd.read_csv(StringIO(swh_csv))
 
+        if temp_swh_data.empty:
+            print("No SWH data returned — skipping ETL processing.")
+            return
+
         # Perform Data Merging in memory
         merged_data_to_write = add_stats(
             temp_swh_data.merge(
