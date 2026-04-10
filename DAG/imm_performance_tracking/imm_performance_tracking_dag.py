@@ -3,20 +3,20 @@ import os
 import sys
 import json
 import requests
-import subprocess as sp
 from io import StringIO
 import pandas as pd
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
 from cryptography.fernet import Fernet as hedears
-from jinja2 import Environment, FileSystemLoader
 
 # Airflow Imports
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.email import send_email
 import pendulum
+
+from utils import render_sql, run_cli
 
 pd.set_option("display.precision", 16)
 
@@ -61,36 +61,6 @@ def rest_api_call(query):
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
-
-
-def run_cli(cmd, fetch_data=False):
-    """
-    Executes a pharos CLI command.
-    If fetch_data=True, parses the stdout as JSON and returns the result.data (CSV).
-    """
-    result = sp.run(cmd, shell=True, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"Command failed with code {result.returncode}\nCMD: {cmd}\nSTDERR: {result.stderr}"
-        )
-
-    raw_output = result.stdout.strip()
-    if fetch_data:
-        try:
-            parsed = json.loads(raw_output)
-            return parsed["result"]["data"]
-        except json.JSONDecodeError as e:
-            raise RuntimeError(
-                f"Failed to parse JSON output. Command: {cmd}\nOutput: {raw_output[:300]}"
-            ) from e
-    return raw_output
-
-
-def render_sql(filename, **kwargs):
-    """Loads and renders a Jinja2 template SQL file dynamically."""
-    env = Environment(loader=FileSystemLoader(DAG_HOME))
-    template = env.get_template(filename)
-    return template.render(**kwargs)
 
 
 def write_data(tableData, tableName):
@@ -166,7 +136,7 @@ def add_stats(df1):
 
 
 def fetch_implementation_types_detail():
-    query = render_sql(f"{implementation_types_detail_name}.sql")
+    query = render_sql(DAG_HOME, f"{implementation_types_detail_name}.sql")
     name, module, ox20enabled, migrateable_col = (
         "implementation_type",
         "module",
@@ -250,7 +220,7 @@ def fetch_implementation_types_detail():
 
 
 def fetch_composite_types():
-    query = render_sql(f"{composite_types_name}.sql")
+    query = render_sql(DAG_HOME, f"{composite_types_name}.sql")
     composite_types = []
 
     try:
@@ -307,7 +277,7 @@ def fetch_composite_types():
 
 
 def fetch_implementation_component_details():
-    query = render_sql(f"{implementation_component_details_name}.sql")
+    query = render_sql(DAG_HOME, f"{implementation_component_details_name}.sql")
     comp_name, migrateable_col = "component_name", "migrateable"
     implementation_component_details = []
 
@@ -407,7 +377,7 @@ def execute_etl_flow(**kwargs):
         tables = tables_csv.split("\n")
 
         create_table_query = render_sql(
-            "create_table.sql", main_table_name=main_table_name
+            DAG_HOME, "create_table.sql", main_table_name=main_table_name
         )
         create_table_cmd = f'pharos spark run-sql --sql "{create_table_query}"'
 
@@ -439,7 +409,7 @@ def execute_etl_flow(**kwargs):
         # Fetch SWH Data
         str_month_to_query_from = month_to_query_from.strftime("%Y-%m-%d")
         swh_data_query = render_sql(
-            "imm_performance_tracking.sql", oldest_month_value=str_month_to_query_from
+            DAG_HOME, "imm_performance_tracking.sql", oldest_month_value=str_month_to_query_from
         )
         swh_csv = run_cli(
             f'pharos spark run-sql --sql "{swh_data_query}"', fetch_data=True
@@ -485,6 +455,7 @@ def execute_etl_flow(**kwargs):
 
         # Insert from Temp Table into Main Table via Trino (with explicit CASTs)
         insert_query = render_sql(
+            DAG_HOME,
             "insert_data.sql",
             main_table_name=main_table_name,
             temp_table_name=temp_table_name,

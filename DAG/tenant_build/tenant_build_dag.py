@@ -1,18 +1,17 @@
 # coding=utf-8
 import os
-import json
-import subprocess as sp
 from io import StringIO
 import pandas as pd
 from itertools import combinations
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from jinja2 import Environment, FileSystemLoader
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.email import send_email
 import pendulum
+
+from utils import render_sql, run_cli
 
 # --- Configuration & Constants ---
 DAG_HOME = os.path.dirname(os.path.abspath(__file__))
@@ -54,41 +53,12 @@ def send_alert(context):
 
 # --- Helpers ---
 
-def render_sql(filename, **kwargs):
-    """Loads and renders a Jinja2 template SQL file."""
-    env = Environment(loader=FileSystemLoader(DAG_HOME))
-    template = env.get_template(filename)
-    return template.render(**kwargs)
-
-
-def run_cli(cmd, fetch_data=False):
-    """
-    Executes a pharos CLI command.
-    If fetch_data=True, parses stdout as JSON and returns result.data (CSV).
-    """
-    result = sp.run(cmd, shell=True, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"Command failed with code {result.returncode}\nCMD: {cmd}\nSTDERR: {result.stderr}"
-        )
-
-    raw_output = result.stdout.strip()
-    if fetch_data:
-        try:
-            parsed = json.loads(raw_output)
-            return parsed["result"]["data"]
-        except json.JSONDecodeError as e:
-            raise RuntimeError(
-                f"Failed to parse JSON output. Command: {cmd}\nOutput: {raw_output[:300]}"
-            ) from e
-    return raw_output
-
-
 def create_table_if_needed(existing_tables, table_key):
     """Creates a CDT table if it does not already exist."""
     table_name = TABLE_NAMES[table_key]
     if table_name not in existing_tables:
         create_query = render_sql(
+            DAG_HOME,
             CREATE_TABLE_FILES[table_key],
             table_name=CDT_PREFIX + table_name,
         )
@@ -166,6 +136,7 @@ def execute_tenant_build_etl(**kwargs):
         str_date_to_query_from = date_to_query_from.strftime("%Y-%m-%d")
 
         tenant_build_query = render_sql(
+            DAG_HOME,
             "tenant_build.sql",
             swh_table_name=SWH_TABLE_NAME,
             oldest_date=str_date_to_query_from,
