@@ -124,15 +124,16 @@ def read_data(tableName, where_clause=""):
 
 
 def add_stats(df1):
+    safe_instance_count = df1["sum_instance_count"].replace(0, pd.NA)
     df1["avg_trans_time_per_instance"] = (
         df1["avg_transformation_time"] * df1["count"]
-    ) / df1["sum_instance_count"]
-    df1["avg_ws_time_per_instance"] = (df1["avg_ws_time"] * df1["count"]) / df1[
-        "sum_instance_count"
-    ]
-    df1["avg_tot_time_per_instance"] = (df1["avg_total_time"] * df1["count"]) / df1[
-        "sum_instance_count"
-    ]
+    ) / safe_instance_count
+    df1["avg_ws_time_per_instance"] = (
+        df1["avg_ws_time"] * df1["count"]
+    ) / safe_instance_count
+    df1["avg_tot_time_per_instance"] = (
+        df1["avg_total_time"] * df1["count"]
+    ) / safe_instance_count
 
     df2 = df1.groupby(["implementation_type_name"], as_index=False).agg(
         {
@@ -489,9 +490,7 @@ def execute_etl_flow(**kwargs):
             temp_table_name=temp_table_name,
         )
         shell_safe_query = insert_query.replace('"', '\\"')
-        run_cli(
-            f'pharos sql run --sql "{shell_safe_query}"', fetch_data=False
-        )
+        run_cli(f'pharos sql run --sql "{shell_safe_query}"', fetch_data=False)
 
         # Drop Temp Table after writing data to main table
         run_cli(
