@@ -101,7 +101,7 @@ denver_tz = pendulum.timezone("America/Denver")
 default_args = {
     'owner': 'huzefa.saifee',
     'retries': 0,
-    'start_date': pendulum.datetime(2026, 4, 15, 15, 0, tz=denver_tz),
+    'start_date': pendulum.datetime(2026, 4, 16, 15, 0, tz=denver_tz),
     'on_failure_callback': send_alert,
 }
 
