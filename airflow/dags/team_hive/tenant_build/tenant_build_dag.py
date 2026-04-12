@@ -228,7 +228,7 @@ default_args = {
 _airflow_user = os.path.dirname(os.path.abspath(__file__)).split(os.sep)[5]
 
 with DAG(
-    dag_id=f"tenant_build-{_airflow_user}",
+    dag_id=("tenant_build" if _airflow_user == "cdt_metrics" else f"tenant_build-{_airflow_user}"),
     default_args=default_args,
     description="Daily ETL: Tenant Build metrics from SWH to CDT with tag analysis",
     schedule_interval=("0 15 * * *" if _airflow_user == "cdt_metrics" else None),  # 3:00 PM Daily (Denver)

@@ -530,7 +530,7 @@ default_args = {
 _airflow_user = os.path.dirname(os.path.abspath(__file__)).split(os.sep)[5]
 
 with DAG(
-    dag_id=f"imm_performance_tracking-{_airflow_user}",
+    dag_id=("imm_performance_tracking" if _airflow_user == "cdt_metrics" else f"imm_performance_tracking-{_airflow_user}"),
     default_args=default_args,
     description="One Stop Shop for IMM Performance Tracking",
     schedule_interval=("0 15 * * *" if _airflow_user == "cdt_metrics" else None),  # 3:00 PM Daily
