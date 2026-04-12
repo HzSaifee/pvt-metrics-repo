@@ -1,9 +1,12 @@
 # coding=utf-8
 import os
+import json
+import subprocess as sp
 from io import StringIO
 import pandas as pd
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from jinja2 import Environment, FileSystemLoader
 
 # Airflow & Pharos Imports
 from airflow import DAG
@@ -11,8 +14,6 @@ from airflow.operators.python import PythonOperator
 from airflow.utils.email import send_email
 import pendulum
 from com.workday.pharos.persistence.pharos_persistence import PharosPersistence
-
-from team_hive.utils import render_sql, run_cli_fetch_json
 
 # --- Configuration & Constants ---
 DAG_HOME = os.path.dirname(os.path.abspath(__file__))
@@ -30,9 +31,28 @@ def send_alert(context):
     print(body)
     send_email(to=email_list, subject="[CRITICAL FAILURE] Scopes Metrics Flow", html_content=body)
 
+def render_sql(filename, **kwargs):
+    """Loads and renders a Jinja2 template SQL file dynamically."""
+    env = Environment(loader=FileSystemLoader(DAG_HOME))
+    template = env.get_template(filename)
+    return template.render(**kwargs)
+
+def run_cli_fetch_json(cmd):
+    """Executes a pharos CLI command, parses the stdout as JSON, and returns the result.data (CSV)."""
+    result = sp.run(cmd, shell=True, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"Command failed with code {result.returncode}\nCMD: {cmd}\nSTDERR: {result.stderr}")
+    
+    raw_output = result.stdout.strip()
+    try:
+        parsed = json.loads(raw_output)
+        return parsed["result"]["data"]
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Failed to parse JSON output. Command: {cmd}\nOutput: {raw_output[:300]}") from e
+
 def fetch_data(file_name, str_month_to_query_from):
     """Renders the SQL, runs it via pharos cli, and loads the CSV into a pandas DataFrame."""
-    swh_query = render_sql(DAG_HOME, f"{file_name}.sql", oldest_month_value=str_month_to_query_from)
+    swh_query = render_sql(f"{file_name}.sql", oldest_month_value=str_month_to_query_from)
     
     # Run the query and extract the data
     cmd = f'pharos sql run --sql "{swh_query}"'

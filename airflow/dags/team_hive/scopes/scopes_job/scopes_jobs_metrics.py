@@ -1,15 +1,16 @@
 # coding=utf-8
 import os
+import json
+import subprocess as sp
 from io import StringIO
 import pandas as pd
+from jinja2 import Environment, FileSystemLoader
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.email import send_email
 import pendulum
 from com.workday.pharos.persistence.pharos_persistence import PharosPersistence
-
-from team_hive.utils import render_sql, run_cli_fetch_json
 
 # --- Configuration & Constants ---
 DAG_HOME = os.path.dirname(os.path.abspath(__file__))
@@ -32,11 +33,31 @@ def send_alert(context):
     send_email(to=email_list, subject="[CRITICAL FAILURE] Scopes Jobs Metrics Flow", html_content=body)
 
 
+def render_sql(filename, **kwargs):
+    """Loads and renders a Jinja2 template SQL file."""
+    env = Environment(loader=FileSystemLoader(DAG_HOME))
+    template = env.get_template(filename)
+    return template.render(**kwargs)
+
+
+def run_cli_fetch_json(cmd):
+    """Executes a pharos CLI command, parses stdout as JSON, returns the result.data (CSV)."""
+    result = sp.run(cmd, shell=True, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"Command failed with code {result.returncode}\nCMD: {cmd}\nSTDERR: {result.stderr}")
+
+    raw_output = result.stdout.strip()
+    try:
+        parsed = json.loads(raw_output)
+        return parsed["result"]["data"]
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Failed to parse JSON output. Command: {cmd}\nOutput: {raw_output[:300]}") from e
+
+
 # --- Main Execution Task ---
 def execute_scopes_jobs_metrics(**kwargs):
     """Fetches Scopes job performance data and saves to Nimbus."""
     query = render_sql(
-        DAG_HOME,
         "job_performance.sql",
         lookback_days=LOOKBACK_DAYS,
         job_definitions=JOB_DEFINITIONS,
