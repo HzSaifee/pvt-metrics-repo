@@ -93,9 +93,11 @@ default_args = {
 
 # Dynamic user and schedule to prevent duplicate runs across Airflow accounts
 _airflow_user = os.path.dirname(os.path.abspath(__file__)).split(os.sep)[5]
+_service_account = "cdt_metrics"
+_base_dag_id = "scopes_jobs_metrics"
 
 with DAG(
-    dag_id=("scopes_jobs_metrics" if _airflow_user == "cdt_metrics" else f"scopes_jobs_metrics-{_airflow_user}"),
+    dag_id=(_base_dag_id if _airflow_user == _service_account else f"{_base_dag_id}-{_airflow_user}"),
     default_args=default_args,
     description="Scopes Jobs Performance Metrics",
     schedule=None,
