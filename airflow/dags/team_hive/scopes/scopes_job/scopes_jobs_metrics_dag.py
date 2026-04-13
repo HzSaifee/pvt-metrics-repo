@@ -58,7 +58,7 @@ def run_cli_fetch_json(cmd):
 def execute_scopes_jobs_metrics(**kwargs):
     """Fetches Scopes job performance data and saves to Nimbus."""
     query = render_sql(
-        "job_performance.sql",
+        "scopes_job_performance.sql",
         lookback_days=LOOKBACK_DAYS,
         job_definitions=JOB_DEFINITIONS,
     )
@@ -67,7 +67,7 @@ def execute_scopes_jobs_metrics(**kwargs):
     csv_data = run_cli_fetch_json(cmd)
     df = pd.read_csv(StringIO(csv_data))
 
-    print(f"Fetched {len(df)} rows for job_performance.")
+    print(f"Fetched {len(df)} rows for scopes_job_performance.")
 
     if df.empty:
         print("No data returned — skipping save to Nimbus.")
@@ -75,10 +75,10 @@ def execute_scopes_jobs_metrics(**kwargs):
 
     PharosPersistence.save_to_nimbus_data(
         df,
-        table_name='job_performance',
+        table_name='scopes_job_performance',
         mode='overwrite'
     )
-    print("Successfully saved job_performance to Nimbus.")
+    print("Successfully saved scopes_job_performance to Nimbus.")
 
 
 # --- DAG Definition ---

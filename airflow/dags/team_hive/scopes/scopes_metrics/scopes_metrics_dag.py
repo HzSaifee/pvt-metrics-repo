@@ -71,11 +71,11 @@ def execute_scopes_metrics(**kwargs):
     str_month_to_query_from = month_to_query_from.strftime("%Y-%m-%d")
 
     sql_files = [
-        "metrics",
-        "input_type_metrics",
-        "selection_type_metrics",
-        "validation_usages_metrics",
-        "materialization_metrics"
+        "scopes_metrics",
+        "scopes_input_type_metrics",
+        "scopes_selection_type_metrics",
+        "scopes_validation_usages_metrics",
+        "scopes_materialization_metrics"
     ]
 
     for sql_file in sql_files:
