@@ -29,7 +29,10 @@
 --
 -- Event rows include ALL deployments (even excluded scopes) for filtering.
 -- No-event rows exclude excluded-scope deployments (clean denominator).
--- Final SELECT uses LEFT JOIN (not UNION ALL) to avoid doubling Trino stages.
+-- Final SELECT uses CROSS JOIN row-type duplication + conditional LEFT JOIN
+-- to produce event rows and denominator rows in a single pass, referencing
+-- each CTE exactly once to avoid Trino stage explosion.
+-- Denominator rows have NULL tool columns for Tableau filter stability.
 --
 -- Time window: Rolling 6-month parameterized biweekly grain.
 --
@@ -672,20 +675,19 @@ customer_deployment_base AS (
 
 
 -- =============================================================================
--- FINAL SELECT: Single LEFT JOIN replaces INNER JOIN + UNION ALL + NOT EXISTS.
--- Trino inlines CTEs at each reference, so referencing customer_deployment_base
--- and all_tool_events once instead of twice halves the stage count.
+-- FINAL SELECT: Single-pass row-type duplication.
+-- CROSS JOIN with 2-row helper ('event','denom') + conditional LEFT JOIN
+-- so customer_deployment_base and all_tool_events are each referenced once.
+-- Event rows:  row_type='event', tool columns from ate (ate IS NOT NULL)
+-- Denom rows:  row_type='denom', tool columns NULL, filtered to active accounts
+-- Tableau filters on created_by/tool_category must include NULL to preserve
+-- denominator stability.
 -- =============================================================================
--- Event rows:    ate columns populated, all deployments included for enrichment
--- No-event rows: ate columns NULL, only non-excluded deployments (clean denominator)
 
 SELECT
-    CASE
-        WHEN ate.customer_sf_account_id IS NULL THEN p.end_date
-        ELSE ate.biweekly_period
-    END AS biweekly_period,
+    CASE WHEN d.row_type = 'event' THEN ate.biweekly_period ELSE p.end_date END AS biweekly_period,
     cdb.customer_sf_account_id,
-    COALESCE(ate.billing_id, cdb.billing_id) AS billing_id,
+    CASE WHEN d.row_type = 'event' THEN COALESCE(ate.billing_id, cdb.billing_id) ELSE cdb.billing_id END AS billing_id,
     cdb.account_name,
     cdb.is_active_customer,
     cdb.has_active_deployment,
@@ -720,8 +722,15 @@ SELECT
     cdb.segment_size_l1
 FROM customer_deployment_base cdb
 CROSS JOIN Parameters p
+CROSS JOIN (SELECT 'event' AS row_type UNION ALL SELECT 'denom' AS row_type) d
 LEFT JOIN all_tool_events ate
     ON cdb.customer_sf_account_id = ate.customer_sf_account_id
-WHERE ate.customer_sf_account_id IS NOT NULL
-   OR cdb.is_excluded_scope = FALSE
+    AND d.row_type = 'event'
+WHERE (cdb.is_excluded_scope = FALSE OR cdb.nth_active_deployment = 0)
+  AND (
+    (d.row_type = 'event' AND ate.customer_sf_account_id IS NOT NULL)
+    OR
+    (d.row_type = 'denom' AND (cdb.is_active_customer = TRUE
+                                OR cdb.has_active_deployment = TRUE))
+  )
 ORDER BY cdb.customer_sf_account_id, cdb.nth_active_deployment NULLS LAST, 1

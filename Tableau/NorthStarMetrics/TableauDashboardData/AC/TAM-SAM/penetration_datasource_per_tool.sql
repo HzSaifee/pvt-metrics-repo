@@ -615,8 +615,10 @@ flagged_rows AS (
 
 -- =============================================================================
 -- FINAL OUTPUT
--- Keep: all activity rows, customer-only rows (no activity), deploy-only rows (neither)
--- Boolean flags derived from window function results
+-- Keep: all activity rows, all customer denominator rows (regardless of activity),
+-- deploy-only rows (when account is not an active customer).
+-- Denominator rows have NULL activity columns (user_type, tool_type, etc.) so
+-- Tableau filters must include NULL to preserve denominator stability.
 -- =============================================================================
 
 SELECT
@@ -647,6 +649,6 @@ SELECT
     deployment_overall_status
 FROM flagged_rows
 WHERE src = 'A'
-   OR (src = 'B' AND any_activity = 0)
-   OR (src = 'C' AND any_activity = 0 AND any_active_cust = 0)
+   OR src = 'B'
+   OR (src = 'C' AND any_active_cust = 0)
 ORDER BY has_activity DESC, is_active_customer DESC, is_active_deployment DESC, tool_type NULLS LAST, sf_account_id
