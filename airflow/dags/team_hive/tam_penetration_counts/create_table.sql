@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS cdt.{{ table_name }} (
-  market_segment                       VARCHAR    COMMENT 'Market filter segment (All, Launch/Express)',
+  market_segment                       VARCHAR    COMMENT 'Market filter segments (All, Launch/Express...)',
   active_customer_count                BIGINT     COMMENT 'Distinct active customer accounts',
   active_deployment_count_all          BIGINT     COMMENT 'Active deployments - all types',
   active_deployment_count_initial      BIGINT     COMMENT 'Active deployments - Initial',
