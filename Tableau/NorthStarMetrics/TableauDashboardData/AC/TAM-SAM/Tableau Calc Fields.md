@@ -782,3 +782,39 @@ COUNTD(
     END
 )
 ```
+
+### 35. Market Filter
+```
+IF [Market] = 'All' THEN
+    TRUE
+ELSEIF [Market] = 'LE' THEN
+    [enterprise_size_group] = 'LE'
+ELSEIF [Market] = 'ME' THEN
+    [enterprise_size_group] = 'ME'
+ELSEIF [Market] = 'GO' THEN
+    [Is Workday GO Customer?] = TRUE
+ELSEIF [Market] = 'GO Partners' THEN
+    (
+        CONTAINS(UPPER([deployment_partner]), 'ALBIDA') OR
+        CONTAINS(UPPER([deployment_partner]), 'APEX') OR
+        CONTAINS(UPPER([deployment_partner]), 'TOPBLOC') OR
+        CONTAINS(UPPER([deployment_partner]), 'BNB') OR
+        CONTAINS(UPPER([deployment_partner]), 'BNET BUILDERS') OR
+        CONTAINS(UPPER([deployment_partner]), 'BUSINESS NETWORK BUILDERS') OR
+        CONTAINS(UPPER([deployment_partner]), 'HR PATH') OR
+        CONTAINS(UPPER([deployment_partner]), 'KAINOS') OR
+        CONTAINS(UPPER([deployment_partner]), 'KNOWBRIST') OR
+        CONTAINS(UPPER([deployment_partner]), 'THREE LINK') OR
+        CONTAINS(UPPER([deployment_partner]), 'MERCER') OR
+        CONTAINS(UPPER([deployment_partner]), 'OKORIO') OR
+        CONTAINS(UPPER([deployment_partner]), 'OKARIO') OR
+        CONTAINS(UPPER([deployment_partner]), 'THREE PLUS') OR
+        CONTAINS(UPPER([deployment_partner]), '3PLUS')
+    )
+ELSEIF [Market] = 'Launch/Express' THEN
+    CONTAINS(UPPER([deployment_phase]), 'LAUNCH') OR 
+    CONTAINS(UPPER([deployment_phase]), 'EXPRESS')
+ELSE
+    FALSE
+END
+```
