@@ -791,8 +791,6 @@ ELSEIF [Market] = 'LE' THEN
     [enterprise_size_group] = 'LE'
 ELSEIF [Market] = 'ME' THEN
     [enterprise_size_group] = 'ME'
-ELSEIF [Market] = 'GO' THEN
-    [Is Workday GO Customer?] = TRUE
 ELSEIF [Market] = 'GO Partners' THEN
     (
         CONTAINS(UPPER([deployment_partner]), 'ALBIDA') OR
