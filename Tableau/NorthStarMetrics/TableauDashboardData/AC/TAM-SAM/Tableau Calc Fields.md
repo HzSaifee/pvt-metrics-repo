@@ -147,7 +147,7 @@ IF [MoM Change] >= 0 THEN [MoM Change] END
 ```
 
 - **Compute Using:** `snapshot_month`
-- **Format:** Custom Number → `△ 0.0%; ▽ -0.0%; 0%`
+- **Format:** Custom Number → `△ 0.0%; ; 0%`
 
 ### 3. MoM Down
 
@@ -156,7 +156,7 @@ IF [MoM Change] < 0 THEN ABS([MoM Change]) END
 ```
 
 - **Compute Using:** `snapshot_month`
-- **Format:** Custom Number → `△ 0.0%; ▽ -0.0%; 0%`
+- **Format:** Custom Number → `▽ -0.0%`
 
 ---
 
