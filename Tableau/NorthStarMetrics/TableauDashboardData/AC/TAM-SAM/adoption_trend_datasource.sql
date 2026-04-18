@@ -42,7 +42,7 @@ WITH base AS (
     MAX(activity_customer_ct_tc)            AS max_customer_ct_tc
   FROM cdt.tam_penetration_counts
   WHERE
-    DATE_TRUNC('month', snapshot_date) <= DATE_TRUNC('month', CURRENT_DATE)
+    DATE_TRUNC('month', snapshot_date) < DATE_TRUNC('month', CURRENT_DATE)
     AND snapshot_date >= DATE_ADD('month', -6, DATE_TRUNC('month', CURRENT_DATE))
   GROUP BY
     DATE_TRUNC('month', snapshot_date),
