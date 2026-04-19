@@ -121,9 +121,6 @@ This replaces the old 30-line IF/ELSEIF Market Filter that inspected
 `enterprise_size_group`, `deployment_partner`, `deployment_phase`, etc.
 The SQL already pre-computed segment membership.
 
-**Parameter update:** Removed the `GO` row from the Market parameter.
-Now, only 5 values remain: `All`, `LE`, `ME`, `GO Partners`, `Launch/Express`.
-
 ---
 
 ## TAM Adoption Trend Datasource
@@ -500,6 +497,17 @@ ELSE
     FALSE
 END
 ```
+
+### Market Parameter Value Mappings
+
+| Parameter Value | Display Text |
+| :--- | :--- |
+| `All` | All |
+| `LE` | LE >3500 |
+| `ME` | ME <3500 |
+| `GO Partners` | GO Partners |
+| `GO Customers` | WD (ZDD) GO |
+| `Launch/Express` | Launch/Express |
 
 ### 24. Is Workday GO Customer?
 
@@ -921,12 +929,16 @@ ELSE
 END
 ```
 
-All -> All
-LE -> LE >3500
-ME -> ME <3500
-GO Partners -> GO Partners
-GO -> WD (ZDD) GO
-Launch/Express -> Launch/Express
+### Market Parameter Value Mappings
+
+| Parameter Value | Display Text |
+| :--- | :--- |
+| `All` | All |
+| `LE` | LE >3500 |
+| `ME` | ME <3500 |
+| `GO Partners` | GO Partners |
+| `GO Customers` | WD (ZDD) GO |
+| `Launch/Express` | Launch/Express |
 
 ### 28. Is Workday GO Customer?
 

@@ -25,6 +25,8 @@
         UPPER(COALESCE(deployment_partner, '')) LIKE '%THREE PLUS%' OR
         UPPER(COALESCE(deployment_partner, '')) LIKE '%3PLUS%'
          THEN 1 ELSE 0 END) AS has_go_partner,
+    MAX(CASE WHEN UPPER(sf_account_id) IN (SELECT UPPER(account_id) FROM cdt.workday_go_accounts)
+         THEN 1 ELSE 0 END) AS has_go_customer,
     -- DENOMINATOR FLAGS (4)
     MAX(CASE WHEN any_active_cust > 0 THEN 1 ELSE 0 END) AS f_active_customer,
     MAX(CASE WHEN any_active_deploy > 0
@@ -210,6 +212,7 @@ market_segments AS (
   UNION ALL SELECT 'LE' AS market_segment
   UNION ALL SELECT 'ME' AS market_segment
   UNION ALL SELECT 'GO Partners' AS market_segment
+  UNION ALL SELECT 'GO Customers' AS market_segment
 ),
 filtered AS (
   SELECT
@@ -221,6 +224,7 @@ filtered AS (
       WHEN ms.market_segment = 'LE' THEN has_le_enterprise
       WHEN ms.market_segment = 'ME' THEN has_me_enterprise
       WHEN ms.market_segment = 'GO Partners' THEN has_go_partner
+      WHEN ms.market_segment = 'GO Customers' THEN has_go_customer
       ELSE 0
     END AS seg
   FROM pre_agg pa
@@ -298,7 +302,7 @@ SELECT
   SUM(seg * f_mr_px_mig)   AS activity_phase_x_mr_migrated,
   -- METADATA
   '{{ comments }}' AS comments,
-  DATE_TRUNC('month', DATE_ADD('month', -6, CAST(CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles' AS DATE))) AS window_start,
+  DATE_TRUNC('month', DATE_ADD('month', -5, CAST(CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles' AS DATE))) AS window_start,
   CAST(CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles' AS TIMESTAMP) AS computed_at,
   CAST(CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles' AS DATE) AS snapshot_date
 
