@@ -132,6 +132,7 @@ SELECT
     'Foundation' AS recipe_type,
     frd.sf_deployment_id,
     frd.customer_sf_account_id,
+    UPPER(frd.customer_sf_account_id) IN (SELECT UPPER(account_id) FROM cdt.workday_go_accounts) AS go_customer,
     frd.completion_month,
     frd.completion_date,
     frd.deployment_product_area,
@@ -156,6 +157,7 @@ SELECT
     'Migration' AS recipe_type,
     mrd.sf_deployment_id,
     mrd.customer_sf_account_id,
+    UPPER(mrd.customer_sf_account_id) IN (SELECT UPPER(account_id) FROM cdt.workday_go_accounts) AS go_customer,
     mrd.completion_month,
     mrd.completion_date,
     mrd.deployment_product_area,
@@ -189,8 +191,8 @@ LEFT JOIN dw.lookup_db.sfdc_account_details sad
 --         ELSE 'Initial Deployment' END)
 --   }
 --
--- Is Workday Go Customer? (after Redshift join):
---   NOT ISNULL([accountid])
+-- Is Workday Go Customer?
+--   Use the [go_customer] column (BOOLEAN) — computed server-side from cdt.workday_go_accounts.
 --
 -- =============================================================================
 

@@ -71,6 +71,7 @@ SELECT
     END AS biweekly_period,
     tb.build_status,
     sad.sf_account_id AS customer_sf_account_id,
+    UPPER(sad.sf_account_id) IN (SELECT UPPER(account_id) FROM cdt.workday_go_accounts) AS go_customer,
     sad.account_name, -- Added here
     -- Filter columns from sfdc_account_details (aligned naming)
     COALESCE(sad.enterprise_size_group, 'Unknown') AS enterprise_size_group,
@@ -119,6 +120,7 @@ SELECT
     END AS biweekly_period,
     tb.build_status,
     sad.sf_account_id AS customer_sf_account_id,
+    UPPER(sad.sf_account_id) IN (SELECT UPPER(account_id) FROM cdt.workday_go_accounts) AS go_customer,
     sad.account_name, -- Added here
     -- Filter columns from sfdc_account_details (aligned naming)
     COALESCE(sad.enterprise_size_group, 'Unknown') AS enterprise_size_group,
@@ -158,8 +160,8 @@ WHERE tb.build_type = 'Migration Recipe'
 -- Is Completed Build:
 --   [build_status] = 'Completed'
 --
--- Is Workday Go Customer? (after Redshift join):
---   NOT ISNULL([accountid])
+-- Is Workday Go Customer?
+--   Use the [go_customer] column (BOOLEAN) — computed server-side from cdt.workday_go_accounts.
 --
 -- Deployment Type Filter (LOD for Initial vs Subsequent):
 --   { FIXED [customer_sf_account_id], [biweekly_period] :

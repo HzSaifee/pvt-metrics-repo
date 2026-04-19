@@ -390,6 +390,7 @@ SELECT
     first_created_period,
     first_migrated_period,
     sf_account_id,
+    UPPER(sf_account_id) IN (SELECT UPPER(account_id) FROM cdt.workday_go_accounts) AS go_customer,
     account_name,
     tenant_env_type,
     enterprise_size_group,
