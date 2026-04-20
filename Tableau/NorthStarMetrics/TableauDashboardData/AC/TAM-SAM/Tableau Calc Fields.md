@@ -1,5 +1,39 @@
 # Tableau Calculated Fields
 
+## TAM Adoption Trend Datasource
+
+### 1. MoM Change
+
+```tableau
+IF FIRST() = 0 THEN NULL
+ELSE
+  (ZN(SUM([penetration_pct])) - LOOKUP(ZN(SUM([penetration_pct])), -1))
+  / ABS(LOOKUP(ZN(SUM([penetration_pct])), -1))
+END
+```
+
+- **Compute Using:** `snapshot_month`
+
+### 2. MoM Up
+
+```tableau
+IF [MoM Change] >= 0 THEN [MoM Change] END
+```
+
+- **Compute Using:** `snapshot_month`
+- **Format:** Custom Number → `△ 0.0%; ; 0%`
+
+### 3. MoM Down
+
+```tableau
+IF [MoM Change] < 0 THEN ABS([MoM Change]) END
+```
+
+- **Compute Using:** `snapshot_month`
+- **Format:** Custom Number → `▽ -0.0%`
+
+---
+
 ## TAM Penetration Counts Datasource
 
 ### Penetration % Fields
@@ -120,40 +154,6 @@ Place on Filters shelf → select `True`.
 This replaces the old 30-line IF/ELSEIF Market Filter that inspected
 `enterprise_size_group`, `deployment_partner`, `deployment_phase`, etc.
 The SQL already pre-computed segment membership.
-
----
-
-## TAM Adoption Trend Datasource
-
-### 1. MoM Change
-
-```tableau
-IF FIRST() = 0 THEN NULL
-ELSE
-  (ZN(SUM([penetration_pct])) - LOOKUP(ZN(SUM([penetration_pct])), -1))
-  / ABS(LOOKUP(ZN(SUM([penetration_pct])), -1))
-END
-```
-
-- **Compute Using:** `snapshot_month`
-
-### 2. MoM Up
-
-```tableau
-IF [MoM Change] >= 0 THEN [MoM Change] END
-```
-
-- **Compute Using:** `snapshot_month`
-- **Format:** Custom Number → `△ 0.0%; ; 0%`
-
-### 3. MoM Down
-
-```tableau
-IF [MoM Change] < 0 THEN ABS([MoM Change]) END
-```
-
-- **Compute Using:** `snapshot_month`
-- **Format:** Custom Number → `▽ -0.0%`
 
 ---
 
