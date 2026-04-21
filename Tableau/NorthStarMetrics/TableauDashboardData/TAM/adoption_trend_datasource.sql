@@ -40,7 +40,7 @@ WITH base AS (
     MAX(activity_phase_x_ct_tool_usage)     AS max_phase_x_ct_tool_usage,
     MAX(activity_phase_x_tc_tool_usage)     AS max_phase_x_tc_tool_usage,
     MAX(activity_customer_ct_tc)            AS max_customer_ct_tc
-  FROM cdt.tam_penetration_counts
+  FROM dw.cdt.tam_penetration_counts
   WHERE
     DATE_TRUNC('month', snapshot_date) < DATE_TRUNC('month', CURRENT_DATE)
     AND snapshot_date >= DATE_ADD('month', -6, DATE_TRUNC('month', CURRENT_DATE))

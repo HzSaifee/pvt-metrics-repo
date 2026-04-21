@@ -67,7 +67,7 @@ SELECT
   MAX(activity_initial_fr_mr_migrated)   AS max_initial_fr_mr_migrated,
   MAX(activity_phase_x_fr_mr_migrated)   AS max_phase_x_fr_mr_migrated
 
-FROM cdt.tam_penetration_counts
+FROM dw.cdt.tam_penetration_counts
 WHERE
   snapshot_date >= CASE
     WHEN DAY(CURRENT_DATE) <= 15

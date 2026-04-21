@@ -687,7 +687,7 @@ customer_deployment_base AS (
 SELECT
     CASE WHEN d.row_type = 'event' THEN ate.biweekly_period ELSE p.end_date END AS biweekly_period,
     cdb.customer_sf_account_id,
-    UPPER(cdb.customer_sf_account_id) IN (SELECT UPPER(account_id) FROM cdt.workday_go_accounts) AS go_customer,
+    UPPER(cdb.customer_sf_account_id) IN (SELECT UPPER(account_id) FROM dw.cdt.workday_go_accounts) AS go_customer,
     CASE WHEN d.row_type = 'event' THEN COALESCE(ate.billing_id, cdb.billing_id) ELSE cdb.billing_id END AS billing_id,
     cdb.account_name,
     cdb.is_active_customer,

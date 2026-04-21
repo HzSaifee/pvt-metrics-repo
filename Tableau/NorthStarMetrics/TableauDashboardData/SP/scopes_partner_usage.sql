@@ -127,7 +127,7 @@ customer_tool_usage AS (
 SELECT 
     u.partner_name,
     u.customer_sf_account_id,
-    UPPER(u.customer_sf_account_id) IN (SELECT UPPER(account_id) FROM cdt.workday_go_accounts) AS go_customer,
+    UPPER(u.customer_sf_account_id) IN (SELECT UPPER(account_id) FROM dw.cdt.workday_go_accounts) AS go_customer,
     u.account_name,            -- For Display in Tableau
     
     -- Tool Info (NULL if Inactive)
