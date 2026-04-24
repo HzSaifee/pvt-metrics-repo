@@ -1,5 +1,5 @@
 -- =============================================================================
--- TAM Adoption Trend Datasource - Custom SQL (Long Format)
+-- TAM Adoption Trend Datasource - Custom SQL
 -- =============================================================================
 -- Purpose: Produces one row per (snapshot_month × metric) for the Tableau
 --          Adoption Trend line chart. Penetration percentages and TAM targets
@@ -13,11 +13,13 @@
 --   1. base CTE — aggregates snapshots to monthly grain per market_segment
 --   2. CROSS JOIN VALUES — defines the 7 metric rows (metric_order, section,
 --      metric_name, tam_target) that appear in each month
---   3. CASE on metric_order — picks the right numerator/denominator pair and
---      embeds the segment filter (Launch/Express or All) per metric
+--   3. CASE on metric_order — picks the right numerator/denominator pair
+--   4. Grouped by market_segment so Tableau can filter via
+--      [market_segment] = [Market] (same pattern as Penetration Counts)
 --
 -- Output Columns:
 --   snapshot_month  — first day of the month
+--   market_segment  — segment label (All, LE, ME, GO Partners, etc.)
 --   metric_order    — display sort (1–7)
 --   section         — grouping label (Initial Deployments / Phase X / Customer)
 --   metric_name     — human-readable metric label
@@ -55,25 +57,26 @@ WITH base AS (
 
 SELECT
   b.snapshot_month,
+  b.market_segment,
   m.metric_order,
   m.section,
   m.metric_name,
   m.tam_target,
   CASE m.metric_order
-    WHEN 1 THEN SUM(CASE WHEN b.market_segment = 'Launch/Express' THEN b.max_initial_fr_mr_migrated END)
-                * 100.0 / NULLIF(SUM(CASE WHEN b.market_segment = 'Launch/Express' THEN b.avg_deploy_initial END), 0)
-    WHEN 2 THEN SUM(CASE WHEN b.market_segment = 'Launch/Express' THEN b.max_initial_ct_tool_usage END)
-                * 100.0 / NULLIF(SUM(CASE WHEN b.market_segment = 'Launch/Express' THEN b.avg_deploy_initial END), 0)
-    WHEN 3 THEN SUM(CASE WHEN b.market_segment = 'Launch/Express' THEN b.max_initial_tc_tool_usage END)
-                * 100.0 / NULLIF(SUM(CASE WHEN b.market_segment = 'Launch/Express' THEN b.avg_deploy_initial END), 0)
-    WHEN 4 THEN SUM(CASE WHEN b.market_segment = 'Launch/Express' THEN b.max_phase_x_fr_mr_migrated END)
-                * 100.0 / NULLIF(SUM(CASE WHEN b.market_segment = 'Launch/Express' THEN b.avg_deploy_phase_x END), 0)
-    WHEN 5 THEN SUM(CASE WHEN b.market_segment = 'Launch/Express' THEN b.max_phase_x_ct_tool_usage END)
-                * 100.0 / NULLIF(SUM(CASE WHEN b.market_segment = 'Launch/Express' THEN b.avg_deploy_phase_x END), 0)
-    WHEN 6 THEN SUM(CASE WHEN b.market_segment = 'Launch/Express' THEN b.max_phase_x_tc_tool_usage END)
-                * 100.0 / NULLIF(SUM(CASE WHEN b.market_segment = 'Launch/Express' THEN b.avg_deploy_phase_x END), 0)
-    WHEN 7 THEN SUM(CASE WHEN b.market_segment = 'All' THEN b.max_customer_ct_tc END)
-                * 100.0 / NULLIF(SUM(CASE WHEN b.market_segment = 'All' THEN b.avg_active_customers END), 0)
+    WHEN 1 THEN SUM(b.max_initial_fr_mr_migrated)
+                * 100.0 / NULLIF(SUM(b.avg_deploy_initial), 0)
+    WHEN 2 THEN SUM(b.max_initial_ct_tool_usage)
+                * 100.0 / NULLIF(SUM(b.avg_deploy_initial), 0)
+    WHEN 3 THEN SUM(b.max_initial_tc_tool_usage)
+                * 100.0 / NULLIF(SUM(b.avg_deploy_initial), 0)
+    WHEN 4 THEN SUM(b.max_phase_x_fr_mr_migrated)
+                * 100.0 / NULLIF(SUM(b.avg_deploy_phase_x), 0)
+    WHEN 5 THEN SUM(b.max_phase_x_ct_tool_usage)
+                * 100.0 / NULLIF(SUM(b.avg_deploy_phase_x), 0)
+    WHEN 6 THEN SUM(b.max_phase_x_tc_tool_usage)
+                * 100.0 / NULLIF(SUM(b.avg_deploy_phase_x), 0)
+    WHEN 7 THEN SUM(b.max_customer_ct_tc)
+                * 100.0 / NULLIF(SUM(b.avg_active_customers), 0)
   END AS penetration_pct
 FROM base b
 CROSS JOIN (
@@ -81,10 +84,10 @@ CROSS JOIN (
     (1, 'Initial Deployments', 'Migration Tools (FR/MR)',         75),
     (2, 'Initial Deployments', 'Change Tracker',                  95),
     (3, 'Initial Deployments', 'Tenant Compare',                  95),
-    (4, 'Phase X',             'Migration Tools (FR/MR)',         40),
+    (4, 'Phase X',             'Migration Tools (FR/MR)',         20),
     (5, 'Phase X',             'Change Tracker',                  95),
     (6, 'Phase X',             'Tenant Compare',                  95),
     (7, 'Customer',            'Change Tracker / Tenant Compare', 95)
 ) AS m(metric_order, section, metric_name, tam_target)
-GROUP BY b.snapshot_month, m.metric_order, m.section, m.metric_name, m.tam_target
-ORDER BY b.snapshot_month, m.metric_order
+GROUP BY b.snapshot_month, b.market_segment, m.metric_order, m.section, m.metric_name, m.tam_target
+ORDER BY b.snapshot_month, b.market_segment, m.metric_order

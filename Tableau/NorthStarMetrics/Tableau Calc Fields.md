@@ -26,6 +26,30 @@ CONTAINS(UPPER([deployment_partner]), 'THREE PLUS') OR
 CONTAINS(UPPER([deployment_partner]), '3PLUS')
 ```
 
+### Market Filter
+
+**Used in:** TAM Adoption Trend, TAM Penetration Counts
+
+```
+[market_segment] = [Market]
+```
+
+- `[Market]` is the existing Market parameter (String type).
+Place on Filters shelf → select `True`.
+The SQL pre-computes segment membership into `market_segment`, so Tableau
+only needs this simple equality check.
+
+### Market Parameter Value Mappings
+
+| Parameter Value | Display Text |
+| :--- | :--- |
+| `All` | All |
+| `LE` | LE >3500 |
+| `ME` | ME <3500 |
+| `GO Partners` | GO Partners |
+| `GO Customers` | WD (ZDD) GO |
+| `Launch/Express` | Launch/Express |
+
 ---
 
 ## TAM Adoption Trend Datasource
@@ -63,6 +87,8 @@ IF [MoM Change] < 0 THEN ABS([MoM Change]) END
 
 - **Compute Using:** `snapshot_month`
 - **Format:** Custom Number → `▽ -0.0%`
+
+> **Shared field also used:** [Market Filter](#market-filter) — see Shared Calculated Fields
 
 ---
 
@@ -174,11 +200,7 @@ ROUND(([TAM %] / 100) * SUM([avg_deploy_phase_x]))
 ROUND(([TAM %] / 100) * SUM([avg_active_customers]))
 ```
 
-### 17. Market Filter
-
-```
-[market_segment] = [Market]
-```
+> **Shared field also used:** [Market Filter](#market-filter) — see Shared Calculated Fields
 
 ### Formatting Notes
 
@@ -187,11 +209,6 @@ ROUND(([TAM %] / 100) * SUM([avg_active_customers]))
 - **TAM %** field Format as Customer Number → `0"%"`
 - **TAM Count fields (13–15):** Format as Number (Integer), no decimal places
 - **Denominator fields** (`avg_active_customers`, `avg_deploy_*`): Display as `ROUND(SUM([field]))`, format as Number (Integer)
-- `[Market]` is the existing Market parameter (String type).
-Place on Filters shelf → select `True`.
-This replaces the old 30-line IF/ELSEIF Market Filter that inspected
-`enterprise_size_group`, `deployment_partner`, `deployment_phase`, etc.
-The SQL already pre-computed segment membership.
 
 ---
 
@@ -578,17 +595,6 @@ ELSE
     FALSE
 END
 ```
-
-### Market Parameter Value Mappings
-
-| Parameter Value | Display Text |
-| :--- | :--- |
-| `All` | All |
-| `LE` | LE >3500 |
-| `ME` | ME <3500 |
-| `GO Partners` | GO Partners |
-| `GO Customers` | WD (ZDD) GO |
-| `Launch/Express` | Launch/Express |
 
 ---
 
