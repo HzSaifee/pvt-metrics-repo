@@ -302,9 +302,9 @@ SELECT
   SUM(seg * f_mr_px_mig)   AS activity_phase_x_mr_migrated,
   -- METADATA
   '{{ comments }}' AS comments,
-  DATE_TRUNC('month', DATE_ADD('month', -5, CAST(CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles' AS DATE))) AS window_start,
+  DATE_TRUNC('month', DATE_ADD('month', -5, DATE '{{ current_date }}')) AS window_start,
   CAST(CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles' AS TIMESTAMP) AS computed_at,
-  CAST(CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles' AS DATE) AS snapshot_date
+  DATE '{{ current_date }}' AS snapshot_date
 
 FROM filtered
 GROUP BY market_segment

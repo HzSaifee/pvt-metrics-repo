@@ -1,6 +1,6 @@
 -- =============================================================================
 -- TAM Penetration CTEs — extracted from penetration_datasource_per_tool.sql
--- Date simplification applied: biweekly boundaries replaced with CURRENT_DATE
+-- Date simplification applied: biweekly boundaries replaced with {{ current_date }} param
 -- =============================================================================
 
 -- =============================================================================
@@ -30,8 +30,8 @@ unified_deployments AS (
             'Workday HiredScore', 'Workday Peakon Employee Voice',
             'Workday Success Plans', 'Workday VNDLY'
         )
-        AND deployment_start_date >= DATE_TRUNC('month', DATE_ADD('month', -6, CURRENT_DATE))
-        AND deployment_start_date <= CURRENT_DATE
+        AND deployment_start_date >= DATE_TRUNC('month', DATE_ADD('month', -6, DATE '{{ current_date }}'))
+        AND deployment_start_date <= DATE '{{ current_date }}'
     UNION ALL
     -- Non-Launch Express Initial: shifted window, Active + Complete
     SELECT
@@ -56,8 +56,8 @@ unified_deployments AS (
             'Workday HiredScore', 'Workday Peakon Employee Voice',
             'Workday Success Plans', 'Workday VNDLY'
         )
-        AND deployment_start_date >= DATE_TRUNC('month', DATE_ADD('month', -12, CURRENT_DATE))
-        AND deployment_start_date <= DATE_TRUNC('month', DATE_ADD('month', -6, CURRENT_DATE))
+        AND deployment_start_date >= DATE_TRUNC('month', DATE_ADD('month', -12, DATE '{{ current_date }}'))
+        AND deployment_start_date <= DATE_TRUNC('month', DATE_ADD('month', -6, DATE '{{ current_date }}'))
 ),
 
 unified_deployment_combos AS (
@@ -80,16 +80,16 @@ unified_deployment_combos AS (
 scopes_input_filtered AS (
     SELECT input_id, scope_external_id
     FROM dw.swh.scopes_input_type_metrics
-    WHERE wd_event_date >= format_datetime(DATE_TRUNC('month', DATE_ADD('month', -6, CURRENT_DATE)), 'yyyy-MM-dd')
-      AND wd_event_date < format_datetime(CURRENT_DATE, 'yyyy-MM-dd')
+    WHERE wd_event_date >= format_datetime(DATE_TRUNC('month', DATE_ADD('month', -6, DATE '{{ current_date }}')), 'yyyy-MM-dd')
+      AND wd_event_date < format_datetime(DATE '{{ current_date }}', 'yyyy-MM-dd')
 ),
 
 migration_filtered AS (
     SELECT event_id, source_object_id
     FROM dw.swh.migration_event_log
     WHERE event_type = 'push_migration'
-      AND wd_event_date >= format_datetime(DATE_TRUNC('month', DATE_ADD('month', -6, CURRENT_DATE)), 'yyyy-MM-dd')
-      AND wd_event_date < format_datetime(CURRENT_DATE, 'yyyy-MM-dd')
+      AND wd_event_date >= format_datetime(DATE_TRUNC('month', DATE_ADD('month', -6, DATE '{{ current_date }}')), 'yyyy-MM-dd')
+      AND wd_event_date < format_datetime(DATE '{{ current_date }}', 'yyyy-MM-dd')
 ),
 
 change_tracker_events AS (
@@ -107,10 +107,10 @@ change_tracker_events AS (
     LEFT JOIN scopes_input_filtered s ON ct.change_tracker_wid = s.input_id
     LEFT JOIN migration_filtered m ON s.scope_external_id = m.source_object_id
     WHERE
-        ct.wd_event_date >= format_datetime(DATE_TRUNC('month', DATE_ADD('month', -6, CURRENT_DATE)), 'yyyy-MM-dd')
-        AND ct.wd_event_date < format_datetime(CURRENT_DATE, 'yyyy-MM-dd')
-        AND ct.time >= DATE_TRUNC('month', DATE_ADD('month', -6, CURRENT_DATE))
-        AND ct.time < CURRENT_DATE
+        ct.wd_event_date >= format_datetime(DATE_TRUNC('month', DATE_ADD('month', -6, DATE '{{ current_date }}')), 'yyyy-MM-dd')
+        AND ct.wd_event_date < format_datetime(DATE '{{ current_date }}', 'yyyy-MM-dd')
+        AND ct.time >= DATE_TRUNC('month', DATE_ADD('month', -6, DATE '{{ current_date }}'))
+        AND ct.time < DATE '{{ current_date }}'
         AND ct.user_type IN ('Customer', 'Implementer')
     GROUP BY 1, 2, 3, 4
 ),
@@ -130,10 +130,10 @@ tenant_compare_events AS (
     LEFT JOIN scopes_input_filtered s ON tc.tenant_compare_scope_wid = s.input_id
     LEFT JOIN migration_filtered m ON s.scope_external_id = m.source_object_id
     WHERE
-        tc.wd_event_date >= format_datetime(DATE_TRUNC('month', DATE_ADD('month', -6, CURRENT_DATE)), 'yyyy-MM-dd')
-        AND tc.wd_event_date < format_datetime(CURRENT_DATE, 'yyyy-MM-dd')
-        AND tc.time >= DATE_TRUNC('month', DATE_ADD('month', -6, CURRENT_DATE))
-        AND tc.time < CURRENT_DATE
+        tc.wd_event_date >= format_datetime(DATE_TRUNC('month', DATE_ADD('month', -6, DATE '{{ current_date }}')), 'yyyy-MM-dd')
+        AND tc.wd_event_date < format_datetime(DATE '{{ current_date }}', 'yyyy-MM-dd')
+        AND tc.time >= DATE_TRUNC('month', DATE_ADD('month', -6, DATE '{{ current_date }}'))
+        AND tc.time < DATE '{{ current_date }}'
         AND tc.user_type IN ('Customer', 'Implementer')
     GROUP BY 1, 2, 3, 4
 ),
@@ -158,10 +158,10 @@ manual_scope_events AS (
     LEFT JOIN scopes_with_input swi ON sm.scope_external_id = swi.scope_external_id
     LEFT JOIN migration_filtered m ON sm.scope_external_id = m.source_object_id
     WHERE
-        sm.wd_event_date >= format_datetime(DATE_TRUNC('month', DATE_ADD('month', -6, CURRENT_DATE)), 'yyyy-MM-dd')
-        AND sm.wd_event_date < format_datetime(CURRENT_DATE, 'yyyy-MM-dd')
-        AND sm.time >= DATE_TRUNC('month', DATE_ADD('month', -6, CURRENT_DATE))
-        AND sm.time < CURRENT_DATE
+        sm.wd_event_date >= format_datetime(DATE_TRUNC('month', DATE_ADD('month', -6, DATE '{{ current_date }}')), 'yyyy-MM-dd')
+        AND sm.wd_event_date < format_datetime(DATE '{{ current_date }}', 'yyyy-MM-dd')
+        AND sm.time >= DATE_TRUNC('month', DATE_ADD('month', -6, DATE '{{ current_date }}'))
+        AND sm.time < DATE '{{ current_date }}'
         AND sm.user_type IN ('Customer', 'Implementer')
         AND swi.scope_external_id IS NULL
     GROUP BY 1, 2, 3, 4
@@ -245,8 +245,8 @@ fr_mr_events AS (
     LEFT JOIN unified_deployment_combos udc
         ON sad.sf_account_id = udc.customer_sf_account_id
     WHERE tb.build_type IN ('Foundation Tenant Build', 'Migration Recipe')
-      AND CAST(tb.wd_event_date AS DATE) >= DATE_TRUNC('month', DATE_ADD('month', -6, CURRENT_DATE))
-      AND CAST(tb.wd_event_date AS DATE) < CURRENT_DATE
+      AND CAST(tb.wd_event_date AS DATE) >= DATE_TRUNC('month', DATE_ADD('month', -6, DATE '{{ current_date }}'))
+      AND CAST(tb.wd_event_date AS DATE) < DATE '{{ current_date }}'
       AND sad.sf_account_id IS NOT NULL
 ),
 
@@ -372,8 +372,8 @@ active_customer_accounts AS (
         ON sad.sf_account_id = aqd.customer_sf_account_id
     WHERE sct.tenant_type = 'Production'
       AND sct.status = 'Active'
-      AND sct.tenant_start_date <= CURRENT_DATE
-      AND (sct.tenant_expire_date IS NULL OR sct.tenant_expire_date >= CURRENT_DATE)
+      AND sct.tenant_start_date <= DATE '{{ current_date }}'
+      AND (sct.tenant_expire_date IS NULL OR sct.tenant_expire_date >= DATE '{{ current_date }}')
       AND scat.tenant_prefix IS NOT NULL
       AND sad.assumed_enterprise_go_live_date IS NOT NULL
       AND sad.segment NOT IN ('CSD EMEA', 'Specialized', 'US Federal')
@@ -487,7 +487,7 @@ tagged_rows AS (
     -- Section B: Active customer rows
     SELECT
         'B' AS src,
-        CURRENT_DATE AS biweekly_period,
+        DATE '{{ current_date }}' AS biweekly_period,
         acb.billing_id,
         acb.sf_account_id,
         CAST(NULL AS VARCHAR) AS user_type,
@@ -516,7 +516,7 @@ tagged_rows AS (
     -- Section C: Active deployment rows
     SELECT
         'C' AS src,
-        CURRENT_DATE AS biweekly_period,
+        DATE '{{ current_date }}' AS biweekly_period,
         adb.billing_id,
         adb.sf_account_id,
         CAST(NULL AS VARCHAR) AS user_type,
